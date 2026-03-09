@@ -20,6 +20,7 @@ def parse_args():
     parser.add_argument("--url", required=True, help="Full YouTube URL")
     parser.add_argument("--topic", required=True, help="Debate topic in plain English")
     parser.add_argument("--speakers", default=None, help="Comma-separated real names in order of first appearance")
+    parser.add_argument("--debaters", default=None, help="Comma-separated names of speakers to score (must be subset of --speakers). If omitted, all speakers are debaters.")
     parser.add_argument("--output", default="turns.json", help="Output JSON path (default: turns.json)")
     parser.add_argument("--adapter", default="assemblyai", choices=["assemblyai"], help="Transcription adapter")
     return parser.parse_args()
@@ -127,6 +128,17 @@ def main():
         if t.speaker not in speakers:
             speakers.append(t.speaker)
 
+    # Determine debaters
+    if args.debaters:
+        debaters = [n.strip() for n in args.debaters.split(",")]
+        invalid = [d for d in debaters if d not in speakers]
+        if invalid:
+            print(f"Warning: --debaters contains names not in speakers: {invalid}")
+            print(f"Known speakers: {speakers}")
+            debaters = [d for d in debaters if d in speakers]
+    else:
+        debaters = list(speakers)
+
     # Build DebateResult
     duration_ms = turns[-1].end_ms if turns else 0
     result = DebateResult(
@@ -135,6 +147,7 @@ def main():
         topic=args.topic,
         duration_ms=duration_ms,
         speakers=speakers,
+        debaters=debaters,
         turns=turns,
         stats={},
         generated_at=datetime.utcnow().isoformat() + "Z",
@@ -153,6 +166,7 @@ def main():
     print(f"\n✓ Ingestion complete")
     print(f"  Turns: {len(turns)}")
     print(f"  Speakers: {speaker_summary}")
+    print(f"  Debaters: {', '.join(result.debaters)}")
     print(f"  Duration: {format_duration(duration_ms)}")
     print(f"  Saved to: {args.output}")
     print(f"\n→ Next: python phase2_score.py --input {args.output}")

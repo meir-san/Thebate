@@ -16,7 +16,10 @@ class AssemblyAIAdapter(BaseAdapter):
         aai.settings.api_key = api_key
 
     def transcribe(self, audio_path: str) -> list[dict]:
-        config = aai.TranscriptionConfig(speaker_labels=True)
+        config = aai.TranscriptionConfig(
+            speaker_labels=True,
+            speech_models=["universal-3-pro"],
+        )
         transcriber = aai.Transcriber()
         transcript = transcriber.transcribe(audio_path, config=config)
 

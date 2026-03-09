@@ -75,6 +75,7 @@ class DebateResult:
     topic: str
     duration_ms: int
     speakers: list[str]                     # in order of first appearance
+    debaters: list[str]                     # subset of speakers who are actually being scored
     turns: list[Turn]
     stats: dict[str, SpeakerStats]          # keyed by speaker name, empty until phase2
     generated_at: str                       # ISO 8601
@@ -86,6 +87,7 @@ class DebateResult:
             "topic": self.topic,
             "duration_ms": self.duration_ms,
             "speakers": self.speakers,
+            "debaters": self.debaters,
             "turns": [t.to_dict() for t in self.turns],
             "stats": {k: v.to_dict() for k, v in self.stats.items()},
             "generated_at": self.generated_at,
@@ -101,6 +103,7 @@ class DebateResult:
             topic=d["topic"],
             duration_ms=d["duration_ms"],
             speakers=d["speakers"],
+            debaters=d.get("debaters", d["speakers"]),
             turns=turns,
             stats=stats,
             generated_at=d["generated_at"],
