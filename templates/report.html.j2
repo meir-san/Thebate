@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ result.title }} — Debate Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080a0f;
+    --panel: rgba(5, 8, 15, 0.88);
+    --border: rgba(255,255,255,0.07);
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --blue: #3b82f6;
+    --orange: #f97316;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --purple: #a855f7;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    line-height: 1.6;
+    min-height: 100vh;
+    position: relative;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    opacity: 0.03;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* Nav */
+  .nav { position: sticky; top: 0; z-index: 100; background: rgba(8,10,15,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 12px 0; }
+  .nav .container { display: flex; justify-content: space-between; align-items: center; }
+  .nav-brand { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 14px; letter-spacing: 3px; color: var(--text); }
+  .nav-meta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+
+  /* Hero */
+  .hero { padding: 64px 0 48px; text-align: center; }
+  .hero-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 16px; }
+  .hero-title { font-family: 'Syne', sans-serif; font-size: 36px; font-weight: 800; margin-bottom: 12px; }
+  .hero-topic { font-size: 18px; color: var(--text-dim); margin-bottom: 24px; }
+  .hero-meta { display: flex; justify-content: center; gap: 24px; flex-wrap: wrap; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+  .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+  /* Score Cards */
+  .score-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 48px; }
+  .score-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 32px; }
+  .score-card-name { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+  .score-card-number { font-family: 'Syne', sans-serif; font-size: 72px; font-weight: 800; line-height: 1; margin-bottom: 24px; }
+  .mini-bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .mini-bar-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); width: 120px; flex-shrink: 0; }
+  .mini-bar-track { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+  .mini-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .mini-bar-value { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); width: 48px; text-align: right; flex-shrink: 0; }
+  .score-card-footer { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+
+  /* Timeline */
+  .timeline-section { margin-bottom: 48px; }
+  .section-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+  .timeline-track { position: relative; height: 32px; background: rgba(255,255,255,0.03); border-radius: 4px; display: flex; overflow: hidden; margin-bottom: 8px; }
+  .timeline-segment { height: 100%; min-width: 1px; }
+  .timeline-flags { position: relative; height: 20px; margin-bottom: 8px; }
+  .flag-dot { position: absolute; width: 8px; height: 8px; border-radius: 50%; top: 6px; transform: translateX(-4px); cursor: pointer; }
+  .flag-dot.dodge { background: var(--red); }
+  .flag-dot.low_engagement { background: var(--yellow); }
+  .flag-dot.topic_drift { background: var(--purple); }
+  .flag-dot .flag-tooltip { display: none; position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.92); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 8px 12px; border-radius: 6px; white-space: nowrap; max-width: 400px; white-space: normal; z-index: 10; pointer-events: none; }
+  .flag-dot:hover .flag-tooltip { display: block; }
+  .timeline-axis { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim); }
+  .timeline-legend { display: flex; gap: 16px; margin-top: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+  .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
+  /* Stats Table */
+  .stats-section { margin-bottom: 48px; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  th, td { padding: 14px 20px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; background: rgba(255,255,255,0.02); }
+  td { font-family: 'JetBrains Mono', monospace; font-size: 14px; }
+  td.metric-label { font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text-dim); }
+  td.better { color: var(--green); font-weight: 700; }
+
+  /* Flag Log */
+  .flag-log-section { margin-bottom: 48px; }
+  .flag-entry { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin-bottom: 10px; }
+  .flag-entry-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+  .flag-timestamp { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+  .flag-speaker { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; }
+  .flag-badge { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px; }
+  .flag-badge.dodge { background: rgba(239,68,68,0.15); color: var(--red); }
+  .flag-badge.low_engagement { background: rgba(234,179,8,0.15); color: var(--yellow); }
+  .flag-badge.topic_drift { background: rgba(168,85,247,0.15); color: var(--purple); }
+  .flag-quote { font-style: italic; font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
+  .flag-explanation { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+
+  /* Methodology */
+  .methodology { margin-bottom: 64px; }
+  .methodology p { margin-bottom: 16px; font-size: 14px; color: var(--text-dim); line-height: 1.7; }
+  .methodology strong { color: var(--text); }
+  .methodology pre { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-dim); overflow-x: auto; margin: 16px 0; }
+  .methodology .disclaimer { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); padding-top: 16px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <div class="container">
+    <div class="nav-brand">DEBATESTATS</div>
+    <div class="nav-meta">v0.1.0 — process metrics only — no opinion judgments</div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-label">Debate Analysis Report</div>
+    <h1 class="hero-title">{{ result.title }}</h1>
+    <p class="hero-topic">{{ result.topic }}</p>
+    <div class="hero-meta">
+      <span>{{ result.generated_at[:10] }}</span>
+      <span>{{ result.duration_ms | ms_to_human }}</span>
+      <span>{{ turns | length }} turns</span>
+      <span>{{ flags | length }} flags</span>
+      <span><a href="{{ result.youtube_url }}" style="color: var(--blue); text-decoration: none;" target="_blank">YouTube ↗</a></span>
+    </div>
+  </div>
+</section>
+
+<!-- Score Cards -->
+<section class="container">
+  <div class="score-cards">
+    {% for speaker in speakers %}
+    {% if speaker in stats %}
+    {% set s = stats[speaker] %}
+    {% set color = '#3b82f6' if loop.index0 == 0 else '#f97316' %}
+    <div class="score-card" style="border-top: 3px solid {{ color }};">
+      <div class="score-card-name" style="color: {{ color }};">{{ speaker }}</div>
+      <div class="score-card-number" style="color: {{ s.overall_score | score_color }};">{{ s.overall_score }}</div>
+
+      <div class="mini-bar-row">
+        <span class="mini-bar-label">Engagement</span>
+        <div class="mini-bar-track"><div class="mini-bar-fill" style="width: {{ (s.avg_engagement * 100) | round(0) }}%; background: {{ color }};"></div></div>
+        <span class="mini-bar-value">{{ '%.0f' | format(s.avg_engagement * 100) }}%</span>
+      </div>
+      <div class="mini-bar-row">
+        <span class="mini-bar-label">Dodge Rate</span>
+        <div class="mini-bar-track"><div class="mini-bar-fill" style="width: {{ ((1 - s.dodge_rate) * 100) | round(0) }}%; background: {{ color }};"></div></div>
+        <span class="mini-bar-value">{{ '%.0f' | format(s.dodge_rate * 100) }}%</span>
+      </div>
+      <div class="mini-bar-row">
+        <span class="mini-bar-label">Claim Support</span>
+        <div class="mini-bar-track"><div class="mini-bar-fill" style="width: {{ (s.claim_support_ratio * 100) | round(0) }}%; background: {{ color }};"></div></div>
+        <span class="mini-bar-value">{{ '%.0f' | format(s.claim_support_ratio * 100) }}%</span>
+      </div>
+      <div class="mini-bar-row">
+        <span class="mini-bar-label">Topic Focus</span>
+        <div class="mini-bar-track"><div class="mini-bar-fill" style="width: {{ ((1 - s.avg_topic_drift) * 100) | round(0) }}%; background: {{ color }};"></div></div>
+        <span class="mini-bar-value">{{ '%.0f' | format((1 - s.avg_topic_drift) * 100) }}%</span>
+      </div>
+
+      <div class="score-card-footer">
+        {{ flag_counts.get(speaker, 0) }} flags raised
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</section>
+
+<!-- Timeline -->
+<section class="container timeline-section">
+  <h2 class="section-title">Turn Timeline</h2>
+  <div class="timeline-track">
+    {% for turn in turns %}
+    {% set width = ((turn.end_ms - turn.start_ms) / result.duration_ms * 100) %}
+    {% set bg = 'rgba(59,130,246,0.5)' if turn.speaker == speakers[0] else 'rgba(249,115,22,0.5)' %}
+    <div class="timeline-segment" style="width: {{ width }}%; background: {{ bg }};"></div>
+    {% endfor %}
+  </div>
+  <div class="timeline-flags">
+    {% for flag in flags %}
+    {% set left = (turns_by_index[flag.turn_index].start_ms / result.duration_ms * 100) %}
+    <div class="flag-dot {{ flag.flag_type }}" style="left: {{ left }}%;">
+      <div class="flag-tooltip">{{ flag.explanation }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="timeline-axis">
+    {% for i in range(5) %}
+    <span>{{ (result.duration_ms * i / 4) | int | ms_to_timestamp }}</span>
+    {% endfor %}
+  </div>
+  <div class="timeline-legend">
+    <span><span class="legend-dot" style="background: var(--red);"></span>Dodge</span>
+    <span><span class="legend-dot" style="background: var(--yellow);"></span>Low Engagement</span>
+    <span><span class="legend-dot" style="background: var(--purple);"></span>Topic Drift</span>
+  </div>
+</section>
+
+<!-- Stats Table -->
+<section class="container stats-section">
+  <h2 class="section-title">Detailed Comparison</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        {% for speaker in speakers %}
+        {% if speaker in stats %}
+        <th style="color: {{ '#3b82f6' if loop.index0 == 0 else '#f97316' }};">{{ speaker }}</th>
+        {% endif %}
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% set scored_speakers = [] %}
+      {% for sp in speakers if sp in stats %}{% if scored_speakers.append(sp) %}{% endif %}{% endfor %}
+
+      {% if scored_speakers | length == 2 %}
+      {% set sa = stats[scored_speakers[0]] %}
+      {% set sb = stats[scored_speakers[1]] %}
+
+      <tr>
+        <td class="metric-label">Overall Score</td>
+        <td class="{{ 'better' if sa.overall_score >= sb.overall_score else '' }}">{{ sa.overall_score }}</td>
+        <td class="{{ 'better' if sb.overall_score >= sa.overall_score else '' }}">{{ sb.overall_score }}</td>
+      </tr>
+      <tr>
+        <td class="metric-label">Avg Engagement</td>
+        <td class="{{ 'better' if sa.avg_engagement >= sb.avg_engagement else '' }}">{{ sa.avg_engagement }}</td>
+        <td class="{{ 'better' if sb.avg_engagement >= sa.avg_engagement else '' }}">{{ sb.avg_engagement }}</td>
+      </tr>
+      <tr>
+        <td class="metric-label">Dodge Rate</td>
+        <td class="{{ 'better' if sa.dodge_rate <= sb.dodge_rate else '' }}">{{ sa.total_dodges }}/{{ sa.questions_faced }} ({{ (sa.dodge_rate * 100) | round(0) | int }}%)</td>
+        <td class="{{ 'better' if sb.dodge_rate <= sa.dodge_rate else '' }}">{{ sb.total_dodges }}/{{ sb.questions_faced }} ({{ (sb.dodge_rate * 100) | round(0) | int }}%)</td>
+      </tr>
+      <tr>
+        <td class="metric-label">Claim Support Ratio</td>
+        <td class="{{ 'better' if sa.claim_support_ratio >= sb.claim_support_ratio else '' }}">{{ sa.supported_claims }}/{{ sa.total_claims }} ({{ (sa.claim_support_ratio * 100) | round(0) | int }}%)</td>
+        <td class="{{ 'better' if sb.claim_support_ratio >= sa.claim_support_ratio else '' }}">{{ sb.supported_claims }}/{{ sb.total_claims }} ({{ (sb.claim_support_ratio * 100) | round(0) | int }}%)</td>
+      </tr>
+      <tr>
+        <td class="metric-label">Avg Topic Drift</td>
+        <td class="{{ 'better' if sa.avg_topic_drift <= sb.avg_topic_drift else '' }}">{{ sa.avg_topic_drift }}</td>
+        <td class="{{ 'better' if sb.avg_topic_drift <= sa.avg_topic_drift else '' }}">{{ sb.avg_topic_drift }}</td>
+      </tr>
+      {% set fc_a = flag_counts.get(scored_speakers[0], 0) %}
+      {% set fc_b = flag_counts.get(scored_speakers[1], 0) %}
+      <tr>
+        <td class="metric-label">Total Flags</td>
+        <td class="{{ 'better' if fc_a <= fc_b else '' }}">{{ fc_a }}</td>
+        <td class="{{ 'better' if fc_b <= fc_a else '' }}">{{ fc_b }}</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</section>
+
+<!-- Flag Log -->
+<section class="container flag-log-section">
+  <h2 class="section-title">Flag Log ({{ flags | length }} events)</h2>
+  {% for flag in flags %}
+  {% set turn = turns_by_index[flag.turn_index] %}
+  {% set color = '#3b82f6' if turn.speaker == speakers[0] else '#f97316' %}
+  <div class="flag-entry">
+    <div class="flag-entry-header">
+      <span class="flag-timestamp">{{ turn.start_ms | ms_to_timestamp }}</span>
+      <span class="flag-speaker" style="color: {{ color }};">{{ turn.speaker }}</span>
+      <span class="flag-badge {{ flag.flag_type }}">{{ flag.flag_type | replace('_', ' ') }}</span>
+    </div>
+    <div class="flag-quote">"{{ turn.text[:120] }}{% if turn.text | length > 120 %}...{% endif %}"</div>
+    <div class="flag-explanation">{{ flag.explanation }}</div>
+  </div>
+  {% endfor %}
+</section>
+
+<!-- Methodology -->
+<section class="container methodology">
+  <h2 class="section-title">Methodology</h2>
+
+  <p><strong>Engagement Score:</strong> Cosine similarity between the speaker's response and the opponent's previous turn. Measures how directly someone addresses what was just said.</p>
+
+  <p><strong>Question Dodge Rate:</strong> When a turn contains a direct question, the responder's next turn is compared semantically. Below-threshold similarity is flagged as a dodge.</p>
+
+  <p><strong>Claim Support Ratio:</strong> Declarative sentences are classified as supported (containing reasoning connectors like 'because', 'therefore', 'evidence shows') or unsupported. Ratio of supported to total.</p>
+
+  <p><strong>Topic Drift Index:</strong> Each turn is compared semantically to the agreed debate topic. High distance means the speaker is steering conversation elsewhere.</p>
+
+  <pre>score = (avg_engagement × 30)
+      + ((1 − dodge_rate) × 25)
+      + (claim_support_ratio × 25)
+      + ((1 − avg_topic_drift) × 20)</pre>
+
+  <p class="disclaimer">No LLM judges the content or opinions expressed. All metrics are mathematical. Source code is open.</p>
+</section>
+
+</body>
+</html>
