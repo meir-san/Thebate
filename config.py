@@ -1,0 +1,30 @@
+# Thresholds
+THRESHOLD_ENGAGEMENT = 0.25
+THRESHOLD_DODGE = 0.20        # Lower than engagement — real responses in conversational speech
+                               # often score 0.25–0.35 naturally, so 0.20 avoids false positives
+THRESHOLD_TOPIC_DRIFT = 0.60
+
+# Short turn word cutoffs — turns below these are excluded from scoring
+MIN_WORDS_ENGAGEMENT = 5      # "Yeah", "Right", "Exactly" would tank scores unfairly
+MIN_WORDS_TOPIC_DRIFT = 10    # Short generic turns are semantically distant from any topic
+
+# Score weights — must sum to 100
+SCORE_WEIGHTS = {
+    "engagement": 30,
+    "dodge": 25,
+    "reasoning": 25,
+    "drift": 20,
+}
+
+# Embedding model
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+
+# Reasoning connectors used by claim_ratio metric
+REASONING_CONNECTORS = [
+    "because", "therefore", "since", "thus", "hence",
+    "as a result", "this means", "which means", "evidence shows",
+    "research shows", "studies show", "for example", "for instance",
+    "data shows", "according to", "this proves", "which proves",
+    "this demonstrates", "which demonstrates", "the reason is",
+    "that's why", "and so", "which is why"
+]
