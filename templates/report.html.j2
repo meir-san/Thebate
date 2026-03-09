@@ -271,17 +271,18 @@
 <!-- Flag Log -->
 <section class="container flag-log-section">
   <h2 class="section-title">Flag Log ({{ flags | length }} events)</h2>
-  {% for flag in flags %}
+  {% for g in grouped_flags %}
+  {% set flag = g.flag %}
   {% set turn = turns_by_index[flag.turn_index] %}
   {% set color = '#3b82f6' if turn.speaker == speakers[0] else '#f97316' %}
   <div class="flag-entry">
     <div class="flag-entry-header">
       <span class="flag-timestamp">{{ turn.start_ms | ms_to_timestamp }}</span>
       <span class="flag-speaker" style="color: {{ color }};">{{ turn.speaker }}</span>
-      <span class="flag-badge {{ flag.flag_type }}">{{ flag.flag_type | replace('_', ' ') }}</span>
+      <span class="flag-badge {{ flag.flag_type }}">{{ flag.flag_type | replace('_', ' ') }}{% if g.count > 1 %} &times;{{ g.count }}{% endif %}</span>
     </div>
     <div class="flag-quote">"{{ turn.text[:120] }}{% if turn.text | length > 120 %}...{% endif %}"</div>
-    <div class="flag-explanation">{{ flag.explanation }}</div>
+    <div class="flag-explanation">{{ flag.explanation }}{% if g.extra > 0 %} +{{ g.extra }} more questions flagged in this turn{% endif %}</div>
   </div>
   {% endfor %}
 </section>

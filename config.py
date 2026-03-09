@@ -2,11 +2,11 @@
 THRESHOLD_ENGAGEMENT = 0.25
 THRESHOLD_DODGE = 0.20        # Lower than engagement — real responses in conversational speech
                                # often score 0.25–0.35 naturally, so 0.20 avoids false positives
-THRESHOLD_TOPIC_DRIFT = 0.60
+THRESHOLD_TOPIC_DRIFT = 0.78
 
 # Short turn word cutoffs — turns below these are excluded from scoring
-MIN_WORDS_ENGAGEMENT = 5      # "Yeah", "Right", "Exactly" would tank scores unfairly
-MIN_WORDS_TOPIC_DRIFT = 10    # Short generic turns are semantically distant from any topic
+MIN_WORDS_ENGAGEMENT = 10     # Short acknowledgments have no semantic content to compare
+MIN_WORDS_TOPIC_DRIFT = 15    # Short generic turns are semantically distant from any topic
 
 # Score weights — must sum to 100
 SCORE_WEIGHTS = {

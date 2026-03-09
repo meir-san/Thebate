@@ -11,6 +11,30 @@ QUESTION_STARTERS = [
     "could you", "should you", "does that", "do they", "is there",
 ]
 
+FILLER_QUESTIONS = [
+    r"^(but )?what's your thoughts?",
+    r"^what do you think\??$",
+    r"^and guess what\??$",
+    r"^excuse me\??$",
+    r"^you hear me\??$",
+    r"^do you know what i (do|mean)\??$",
+    r"^(so )?what about that\??$",
+    r"^(ok|okay|right|so|well)\??$",
+    r"^now you (might|may|could) say",
+    r"^are you (saying|telling me|serious)",
+    r"^(so )?what were they supposed to do\??$",
+    r"^remember (the|that|when)",
+]
+
+_FILLER_RES = [re.compile(p, re.IGNORECASE) for p in FILLER_QUESTIONS]
+
+
+def _is_filler_question(q: str) -> bool:
+    """Return True if the question is too short or matches a filler pattern."""
+    if len(q.split()) < 6:
+        return True
+    return any(r.search(q) for r in _FILLER_RES)
+
 
 def extract_questions(text: str) -> list[str]:
     """
@@ -51,6 +75,15 @@ def score_dodges(
             continue
 
         questions = extract_questions(turn.text)
+        if not questions:
+            continue
+
+        # Rhetorical detection: 4+ questions in one turn = all rhetorical, skip
+        if len(questions) > 3:
+            continue
+
+        # Filter out filler questions
+        questions = [q for q in questions if not _is_filler_question(q)]
         if not questions:
             continue
 
