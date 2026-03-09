@@ -91,6 +91,10 @@ def run(args):
     from pipeline.metrics.engagement import score_engagement
     from pipeline.metrics.dodge import score_dodges
     from pipeline.metrics.topic_drift import score_topic_drift
+    from pipeline.metrics.correction import score_corrections
+    from pipeline.metrics.consistency import score_consistency
+    from pipeline.metrics.concession import count_concessions
+    from pipeline.metrics.evidence import score_evidence
     from scorer import score_debate
 
     print("Scoring claims...")
@@ -105,8 +109,20 @@ def run(args):
     print("Scoring topic drift...")
     score_topic_drift(result.turns, turn_embeddings, topic_embedding)
 
+    print("Scoring corrections...")
+    score_corrections(result.turns, turn_embeddings, debaters=result.debaters)
+
+    print("Scoring consistency...")
+    score_consistency(result.turns, turn_embeddings, debaters=result.debaters)
+
+    print("Counting concessions...")
+    concession_counts = count_concessions(result.turns, debaters=result.debaters)
+
+    print("Scoring evidence...")
+    score_evidence(result.turns, debaters=result.debaters)
+
     print("Building speaker stats...")
-    score_debate(result)
+    score_debate(result, concession_counts=concession_counts)
 
     # Check for speakers with zero eligible turns
     for speaker, stats in result.stats.items():
@@ -118,18 +134,28 @@ def run(args):
         json.dump(result.to_dict(), f, indent=2, ensure_ascii=False)
 
     # Print summary table
-    print(f"\n{'Speaker':<20} {'Score':>6} {'Eng':>6} {'Dodges':>12} {'Claims':>14} {'Drift':>6}")
+    header = (
+        f"{'Speaker':<22} {'Score':>5} {'Eng':>5} {'Dodges':>10} "
+        f"{'Claims':>12} {'Drift':>5} {'Correct':>7} "
+        f"{'Consist':>7} {'Concess':>7} {'Evidence':>8}"
+    )
+    print(f"\n{header}")
     for speaker, stats in result.stats.items():
         dodge_str = f"{stats.total_dodges}/{stats.questions_faced}"
         dodge_pct = f"({stats.dodge_rate:.0%})" if stats.questions_faced > 0 else "(n/a)"
         claim_str = f"{stats.supported_claims}/{stats.total_claims}"
         claim_pct = f"({stats.claim_support_ratio:.0%})" if stats.total_claims > 0 else "(n/a)"
+        corr_str = f"{stats.correction_absorption_rate:.0%}"
+        cons_str = f"{stats.consistency_score:.2f}"
+        conc_str = f"{stats.concessions_made}"
+        evid_str = f"{stats.avg_evidence_density:.3f}"
         print(
-            f"{speaker:<20} {stats.overall_score:>6.1f} "
-            f"{stats.avg_engagement:>6.2f} "
-            f"{dodge_str:>6} {dodge_pct:<5} "
-            f"{claim_str:>6} {claim_pct:<5}  "
-            f"{stats.avg_topic_drift:>5.2f}"
+            f"{speaker:<22} {stats.overall_score:>5.1f} "
+            f"{stats.avg_engagement:>5.2f} "
+            f"{dodge_str:>5} {dodge_pct:<5}"
+            f"{claim_str:>5} {claim_pct:<5} "
+            f"{stats.avg_topic_drift:>5.2f} "
+            f"{corr_str:>7} {cons_str:>7} {conc_str:>7} {evid_str:>8}"
         )
 
     print(f"\nSaved to: {args.output}")

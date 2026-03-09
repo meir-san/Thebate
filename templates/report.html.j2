@@ -76,6 +76,9 @@
   .flag-dot.dodge { background: var(--red); }
   .flag-dot.low_engagement { background: var(--yellow); }
   .flag-dot.topic_drift { background: var(--purple); }
+  .flag-dot.correction { background: var(--orange); }
+  .flag-dot.position_shift { background: #38bdf8; }
+  .flag-dot.low_evidence { background: var(--text-dim); }
   .flag-dot .flag-tooltip { display: none; position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.92); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 8px 12px; border-radius: 6px; white-space: nowrap; max-width: 400px; white-space: normal; z-index: 10; pointer-events: none; }
   .flag-dot:hover .flag-tooltip { display: block; }
   .timeline-axis { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim); }
@@ -101,6 +104,9 @@
   .flag-badge.dodge { background: rgba(239,68,68,0.15); color: var(--red); }
   .flag-badge.low_engagement { background: rgba(234,179,8,0.15); color: var(--yellow); }
   .flag-badge.topic_drift { background: rgba(168,85,247,0.15); color: var(--purple); }
+  .flag-badge.correction { background: rgba(249,115,22,0.15); color: var(--orange); }
+  .flag-badge.position_shift { background: rgba(56,189,248,0.15); color: #38bdf8; }
+  .flag-badge.low_evidence { background: rgba(148,163,184,0.15); color: var(--text-dim); }
   .flag-quote { font-style: italic; font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
   .flag-explanation { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
 
@@ -206,6 +212,9 @@
     <span><span class="legend-dot" style="background: var(--red);"></span>Dodge</span>
     <span><span class="legend-dot" style="background: var(--yellow);"></span>Low Engagement</span>
     <span><span class="legend-dot" style="background: var(--purple);"></span>Topic Drift</span>
+    <span><span class="legend-dot" style="background: var(--orange);"></span>Correction</span>
+    <span><span class="legend-dot" style="background: #38bdf8;"></span>Position Shift</span>
+    <span><span class="legend-dot" style="background: var(--text-dim);"></span>Low Evidence</span>
   </div>
 </section>
 
@@ -256,6 +265,26 @@
         <td class="{{ 'better' if sa.avg_topic_drift <= sb.avg_topic_drift else '' }}">{{ sa.avg_topic_drift }}</td>
         <td class="{{ 'better' if sb.avg_topic_drift <= sa.avg_topic_drift else '' }}">{{ sb.avg_topic_drift }}</td>
       </tr>
+      <tr>
+        <td class="metric-label">Correction Absorption<br><small style="color:var(--text-dim);font-size:11px;">% of corrections acknowledged</small></td>
+        <td class="{{ 'better' if sa.correction_absorption_rate >= sb.correction_absorption_rate else '' }}">{{ sa.corrections_acknowledged }}/{{ sa.corrections_received }} ({{ (sa.correction_absorption_rate * 100) | round(0) | int }}%)</td>
+        <td class="{{ 'better' if sb.correction_absorption_rate >= sa.correction_absorption_rate else '' }}">{{ sb.corrections_acknowledged }}/{{ sb.corrections_received }} ({{ (sb.correction_absorption_rate * 100) | round(0) | int }}%)</td>
+      </tr>
+      <tr>
+        <td class="metric-label">Position Consistency<br><small style="color:var(--text-dim);font-size:11px;">how consistently speaker held their position</small></td>
+        <td class="{{ 'better' if sa.consistency_score >= sb.consistency_score else '' }}">{{ sa.consistency_score }} ({{ sa.position_shifts }} shifts)</td>
+        <td class="{{ 'better' if sb.consistency_score >= sa.consistency_score else '' }}">{{ sb.consistency_score }} ({{ sb.position_shifts }} shifts)</td>
+      </tr>
+      <tr>
+        <td class="metric-label">Concession Rate<br><small style="color:var(--text-dim);font-size:11px;">willingness to concede valid points</small></td>
+        <td class="{{ 'better' if sa.concession_rate >= sb.concession_rate else '' }}">{{ sa.concessions_made }} ({{ (sa.concession_rate * 100) | round(1) }}%)</td>
+        <td class="{{ 'better' if sb.concession_rate >= sa.concession_rate else '' }}">{{ sb.concessions_made }} ({{ (sb.concession_rate * 100) | round(1) }}%)</td>
+      </tr>
+      <tr>
+        <td class="metric-label">Evidence Density<br><small style="color:var(--text-dim);font-size:11px;">avg concrete evidence markers per turn</small></td>
+        <td class="{{ 'better' if sa.avg_evidence_density >= sb.avg_evidence_density else '' }}">{{ sa.avg_evidence_density }} ({{ sa.total_evidence_markers }} markers)</td>
+        <td class="{{ 'better' if sb.avg_evidence_density >= sa.avg_evidence_density else '' }}">{{ sb.avg_evidence_density }} ({{ sb.total_evidence_markers }} markers)</td>
+      </tr>
       {% set fc_a = flag_counts.get(scored_speakers[0], 0) %}
       {% set fc_b = flag_counts.get(scored_speakers[1], 0) %}
       <tr>
@@ -299,10 +328,20 @@
 
   <p><strong>Topic Drift Index:</strong> Each turn is compared semantically to the agreed debate topic. High distance means the speaker is steering conversation elsewhere.</p>
 
-  <pre>score = (avg_engagement × 30)
-      + ((1 − dodge_rate) × 25)
-      + (claim_support_ratio × 25)
-      + ((1 − avg_topic_drift) × 20)</pre>
+  <p><strong>Correction Absorption:</strong> When speaker A corrects speaker B, we check whether B's next turn acknowledges the correction (cosine similarity ≥ 0.20). Higher absorption = better.</p>
+
+  <p><strong>Position Consistency:</strong> Each speaker's later turns are compared to their own earlier turns. Very low similarity flags a potential position shift. Higher score = more consistent.</p>
+
+  <p><strong>Concession Rate:</strong> Counts explicit concession phrases ("fair point", "you're right", etc.). Higher = more intellectually honest.</p>
+
+  <p><strong>Evidence Density:</strong> Counts concrete evidence markers per turn — years, percentages, named sources, statistics, direct quotes. Higher = more evidence-backed.</p>
+
+  <pre>score = (avg_engagement × 25)
+      + ((1 − dodge_rate) × 20)
+      + (claim_support_ratio × 20)
+      + ((1 − avg_topic_drift) × 15)
+      + (concession_rate × 100 × 10)
+      + (evidence_density × 100 × 10)</pre>
 
   <p class="disclaimer">No LLM judges the content or opinions expressed. All metrics are mathematical. Source code is open.</p>
 </section>

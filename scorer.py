@@ -3,23 +3,23 @@ from models import Turn, SpeakerStats
 import config
 
 
-def build_speaker_stats(turns: list[Turn], speaker: str) -> SpeakerStats:
+def build_speaker_stats(
+    turns: list[Turn],
+    speaker: str,
+    concession_counts: dict[str, int] | None = None,
+) -> SpeakerStats:
     weights = config.SCORE_WEIGHTS
     speaker_turns = [t for t in turns if t.speaker == speaker]
 
     # --- Engagement ---
-    # Exclude None (short turns that were skipped)
     engagement_scores = [t.engagement_score for t in speaker_turns
                          if t.engagement_score is not None]
     avg_engagement = mean(engagement_scores) if engagement_scores else 0.5
 
     # --- Dodge ---
-    # Count questions asked TO this speaker (questions in other speakers' turns)
-    # A dodge flag is on the RESPONDER'S turn, so count dodge flags on this speaker's turns
     dodge_flags = [f for t in speaker_turns for f in t.flags if f.flag_type == "dodge"]
     total_dodges = len(dodge_flags)
 
-    # Count questions directed AT this speaker = questions in other speakers' turns
     from pipeline.metrics.dodge import extract_questions
     questions_faced = sum(
         len(extract_questions(t.text))
@@ -34,17 +34,58 @@ def build_speaker_stats(turns: list[Turn], speaker: str) -> SpeakerStats:
     claim_support_ratio = supported_claims / total_claims if total_claims > 0 else 1.0
 
     # --- Topic drift ---
-    # Exclude None (short turns that were skipped)
     drift_scores = [t.topic_drift_score for t in speaker_turns
                     if t.topic_drift_score is not None]
     avg_topic_drift = mean(drift_scores) if drift_scores else 0.0
 
+    # --- Correction absorption ---
+    correction_flags = [f for t in speaker_turns for f in t.flags if f.flag_type == "correction"]
+    from pipeline.metrics.correction import _is_correction_turn
+    corrections_received = 0
+    for idx, t in enumerate(turns):
+        if t.speaker == speaker:
+            continue
+        if not _is_correction_turn(t.text):
+            continue
+        # Must follow an opponent's turn (directed at them)
+        if idx == 0 or turns[idx - 1].speaker == t.speaker:
+            continue
+        # Check if next different-speaker turn is by this speaker
+        for j in range(idx + 1, len(turns)):
+            if turns[j].speaker != t.speaker:
+                if turns[j].speaker == speaker:
+                    corrections_received += 1
+                break
+    corrections_unacknowledged = len(correction_flags)
+    corrections_acknowledged = corrections_received - corrections_unacknowledged
+    correction_absorption_rate = (
+        corrections_acknowledged / corrections_received
+        if corrections_received > 0 else 1.0
+    )
+
+    # --- Position consistency ---
+    position_shift_flags = [f for t in speaker_turns for f in t.flags if f.flag_type == "position_shift"]
+    position_shifts = len(position_shift_flags)
+    consistency_score = 1 - (position_shifts / len(speaker_turns)) if speaker_turns else 1.0
+
+    # --- Concessions ---
+    concessions_made = (concession_counts or {}).get(speaker, 0)
+    concession_rate = concessions_made / len(speaker_turns) if speaker_turns else 0.0
+
+    # --- Evidence density ---
+    total_evidence_markers = sum(t.evidence_markers for t in speaker_turns)
+    densities = [t.evidence_density for t in speaker_turns if len(t.text.split()) > 0]
+    avg_evidence_density = mean(densities) if densities else 0.0
+
     # --- Overall score ---
+    # correction and consistency tracked but excluded from formula until reliable
     overall_score = (
         avg_engagement * weights["engagement"] +
         (1 - dodge_rate) * weights["dodge"] +
         claim_support_ratio * weights["reasoning"] +
-        (1 - avg_topic_drift) * weights["drift"]
+        (1 - avg_topic_drift) * weights["drift"] +
+        (concession_rate * 100) * weights["concession"] +
+        (avg_evidence_density * 100) * weights["evidence"]
     )
 
     return SpeakerStats(
@@ -58,14 +99,23 @@ def build_speaker_stats(turns: list[Turn], speaker: str) -> SpeakerStats:
         supported_claims=supported_claims,
         claim_support_ratio=round(claim_support_ratio, 3),
         avg_topic_drift=round(avg_topic_drift, 3),
+        corrections_received=corrections_received,
+        corrections_acknowledged=corrections_acknowledged,
+        correction_absorption_rate=round(correction_absorption_rate, 3),
+        position_shifts=position_shifts,
+        consistency_score=round(consistency_score, 3),
+        concessions_made=concessions_made,
+        concession_rate=round(concession_rate, 4),
+        avg_evidence_density=round(avg_evidence_density, 4),
+        total_evidence_markers=total_evidence_markers,
         overall_score=round(overall_score, 1),
     )
 
 
-def score_debate(result) -> None:
+def score_debate(result, concession_counts: dict[str, int] | None = None) -> None:
     """Mutates result.stats in place after all metrics have been run.
     Only builds stats for debaters, not moderators."""
     result.stats = {
-        speaker: build_speaker_stats(result.turns, speaker)
+        speaker: build_speaker_stats(result.turns, speaker, concession_counts)
         for speaker in result.debaters
     }

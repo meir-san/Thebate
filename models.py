@@ -1,7 +1,10 @@
 from dataclasses import dataclass, field, asdict
 from typing import Literal
 
-FlagType = Literal["dodge", "low_engagement", "topic_drift", "unsupported_claim"]
+FlagType = Literal[
+    "dodge", "low_engagement", "topic_drift", "unsupported_claim",
+    "correction", "position_shift", "low_evidence",
+]
 
 
 @dataclass
@@ -33,6 +36,8 @@ class Turn:
     claim_count: int = 0
     supported_claim_count: int = 0
     topic_drift_score: float | None = None  # None = skipped (short turn)
+    evidence_markers: int = 0
+    evidence_density: float = 0.0
     flags: list[Flag] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -58,6 +63,15 @@ class SpeakerStats:
     supported_claims: int
     claim_support_ratio: float      # 1.0 if total_claims == 0
     avg_topic_drift: float
+    corrections_received: int
+    corrections_acknowledged: int
+    correction_absorption_rate: float   # higher = better
+    position_shifts: int
+    consistency_score: float            # higher = better
+    concessions_made: int
+    concession_rate: float              # higher = better
+    avg_evidence_density: float         # higher = better
+    total_evidence_markers: int
     overall_score: float            # 0–100
 
     def to_dict(self) -> dict:
@@ -65,6 +79,16 @@ class SpeakerStats:
 
     @classmethod
     def from_dict(cls, d: dict) -> "SpeakerStats":
+        # Backward compat: fill in defaults for new fields missing from old JSON
+        d.setdefault("corrections_received", 0)
+        d.setdefault("corrections_acknowledged", 0)
+        d.setdefault("correction_absorption_rate", 1.0)
+        d.setdefault("position_shifts", 0)
+        d.setdefault("consistency_score", 1.0)
+        d.setdefault("concessions_made", 0)
+        d.setdefault("concession_rate", 0.0)
+        d.setdefault("avg_evidence_density", 0.0)
+        d.setdefault("total_evidence_markers", 0)
         return cls(**d)
 
 
