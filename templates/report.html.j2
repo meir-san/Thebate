@@ -271,9 +271,9 @@
         <td class="{{ 'better' if sb.correction_absorption_rate >= sa.correction_absorption_rate else '' }}">{{ sb.corrections_acknowledged }}/{{ sb.corrections_received }} ({{ (sb.correction_absorption_rate * 100) | round(0) | int }}%)</td>
       </tr>
       <tr>
-        <td class="metric-label">Position Consistency<br><small style="color:var(--text-dim);font-size:11px;">how consistently speaker held their position</small></td>
-        <td class="{{ 'better' if sa.consistency_score >= sb.consistency_score else '' }}">{{ sa.consistency_score }} ({{ sa.position_shifts }} shifts)</td>
-        <td class="{{ 'better' if sb.consistency_score >= sa.consistency_score else '' }}">{{ sb.consistency_score }} ({{ sb.position_shifts }} shifts)</td>
+        <td class="metric-label">Position Consistency<br><small style="color:var(--text-dim);font-size:11px;">EXPERIMENTAL — high shift counts expected in long debates</small></td>
+        <td>{{ sa.consistency_score }} ({{ sa.position_shifts }} shifts)</td>
+        <td>{{ sb.consistency_score }} ({{ sb.position_shifts }} shifts)</td>
       </tr>
       <tr>
         <td class="metric-label">Concession Rate<br><small style="color:var(--text-dim);font-size:11px;">willingness to concede valid points</small></td>
@@ -281,9 +281,9 @@
         <td class="{{ 'better' if sb.concession_rate >= sa.concession_rate else '' }}">{{ sb.concessions_made }} ({{ (sb.concession_rate * 100) | round(1) }}%)</td>
       </tr>
       <tr>
-        <td class="metric-label">Evidence Density<br><small style="color:var(--text-dim);font-size:11px;">avg concrete evidence markers per turn</small></td>
-        <td class="{{ 'better' if sa.avg_evidence_density >= sb.avg_evidence_density else '' }}">{{ sa.avg_evidence_density }} ({{ sa.total_evidence_markers }} markers)</td>
-        <td class="{{ 'better' if sb.avg_evidence_density >= sa.avg_evidence_density else '' }}">{{ sb.avg_evidence_density }} ({{ sb.total_evidence_markers }} markers)</td>
+        <td class="metric-label">Evidence Density<br><small style="color:var(--text-dim);font-size:11px;">avg per turn (scored) · total markers (info only)</small></td>
+        <td class="{{ 'better' if sa.avg_evidence_density >= sb.avg_evidence_density else '' }}">{{ sa.avg_evidence_density }} avg · {{ sa.total_evidence_markers }} total</td>
+        <td class="{{ 'better' if sb.avg_evidence_density >= sa.avg_evidence_density else '' }}">{{ sb.avg_evidence_density }} avg · {{ sb.total_evidence_markers }} total</td>
       </tr>
       {% set fc_a = flag_counts.get(scored_speakers[0], 0) %}
       {% set fc_b = flag_counts.get(scored_speakers[1], 0) %}

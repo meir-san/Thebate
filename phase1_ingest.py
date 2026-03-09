@@ -22,7 +22,7 @@ def parse_args():
     parser.add_argument("--speakers", default=None, help="Comma-separated real names in order of first appearance")
     parser.add_argument("--debaters", default=None, help="Comma-separated names of speakers to score (must be subset of --speakers). If omitted, all speakers are debaters.")
     parser.add_argument("--output", default="turns.json", help="Output JSON path (default: turns.json)")
-    parser.add_argument("--adapter", default="assemblyai", choices=["assemblyai"], help="Transcription adapter")
+    parser.add_argument("--adapter", default="assemblyai", choices=["assemblyai", "whisperx"], help="Transcription adapter")
     return parser.parse_args()
 
 
@@ -56,9 +56,13 @@ def run(args):
         sys.exit(1)
 
     # Check API key
-    if not os.environ.get("ASSEMBLYAI_API_KEY"):
+    if args.adapter == "assemblyai" and not os.environ.get("ASSEMBLYAI_API_KEY"):
         print("Error: ASSEMBLYAI_API_KEY not set.")
         print("Get a free key at https://www.assemblyai.com")
+        sys.exit(1)
+    if args.adapter == "whisperx" and not os.environ.get("HF_TOKEN"):
+        print("Error: HF_TOKEN not set.")
+        print("Add HF_TOKEN=hf_xxx to your .env file.")
         sys.exit(1)
 
     # Get video metadata
@@ -89,9 +93,14 @@ def run(args):
         sys.exit(1)
 
     # Transcribe
-    print("Transcribing with AssemblyAI (this may take a few minutes)...")
-    from adapters.assemblyai_adapter import AssemblyAIAdapter
-    adapter = AssemblyAIAdapter()
+    if args.adapter == "whisperx":
+        print("Transcribing with WhisperX (this may take a while)...")
+        from adapters.whisperx_adapter import WhisperXAdapter
+        adapter = WhisperXAdapter()
+    else:
+        print("Transcribing with AssemblyAI (this may take a few minutes)...")
+        from adapters.assemblyai_adapter import AssemblyAIAdapter
+        adapter = AssemblyAIAdapter()
     segments = adapter.transcribe(tmp_path)
 
     # Build turns
@@ -118,10 +127,47 @@ def run(args):
             parts = ", ".join(f"{k} → {v}" for k, v in mapping.items())
             print(f"Speaker mapping: {parts}")
 
-        for t in turns:
-            if t.speaker in mapping:
-                t.speaker = mapping[t.speaker]
+        # Show first turn preview and confirm
+        while True:
+            # Apply current mapping
+            for t in turns:
+                if t.speaker in mapping:
+                    t.speaker = mapping[t.speaker]
 
+            # Show preview of each speaker's first turn
+            print("\nSpeaker previews (first 20 words of first turn):")
+            seen_speakers = []
+            for t in turns:
+                if t.speaker not in seen_speakers:
+                    seen_speakers.append(t.speaker)
+                    words = t.text.split()[:20]
+                    preview = " ".join(words)
+                    if len(t.text.split()) > 20:
+                        preview += "..."
+                    print(f"  {t.speaker}: \"{preview}\"")
+
+            confirm = input("\nIs this mapping correct? [Y/n] ").strip().lower()
+            if confirm in ("", "y", "yes"):
+                break
+
+            # Let user re-enter names — first revert to original labels
+            for t in turns:
+                for label, name in mapping.items():
+                    if t.speaker == name:
+                        t.speaker = label
+                        break
+
+            new_names_str = input(
+                f"Re-enter speaker names in order of first appearance "
+                f"({len(speaker_labels)} speakers, comma-separated): "
+            ).strip()
+            names = [n.strip() for n in new_names_str.split(",")]
+            if len(names) != len(speaker_labels):
+                print(f"Expected {len(speaker_labels)} names, got {len(names)}. Try again.")
+                continue
+            mapping = {label: name for label, name in zip(speaker_labels, names)}
+            parts = ", ".join(f"{k} → {v}" for k, v in mapping.items())
+            print(f"New mapping: {parts}")
     # Build speaker list in order of first appearance
     speakers = []
     for t in turns:

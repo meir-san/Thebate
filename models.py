@@ -69,7 +69,9 @@ class SpeakerStats:
     position_shifts: int
     consistency_score: float            # higher = better
     concessions_made: int
-    concession_rate: float              # higher = better
+    concessions_engaged: int            # followed by on-topic continuation
+    concessions_pivot: int              # followed by topic change
+    concession_rate: float              # higher = better (engaged only)
     avg_evidence_density: float         # higher = better
     total_evidence_markers: int
     overall_score: float            # 0–100
@@ -86,6 +88,8 @@ class SpeakerStats:
         d.setdefault("position_shifts", 0)
         d.setdefault("consistency_score", 1.0)
         d.setdefault("concessions_made", 0)
+        d.setdefault("concessions_engaged", 0)
+        d.setdefault("concessions_pivot", 0)
         d.setdefault("concession_rate", 0.0)
         d.setdefault("avg_evidence_density", 0.0)
         d.setdefault("total_evidence_markers", 0)

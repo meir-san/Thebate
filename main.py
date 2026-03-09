@@ -22,7 +22,7 @@ examples:
     parser.add_argument("--speakers", default=None, help="Comma-separated real names in order of first appearance")
     parser.add_argument("--debaters", default=None, help="Comma-separated names of speakers to score (subset of --speakers)")
     parser.add_argument("--output-dir", default="./output/", help="Directory for all output files (default: ./output/)")
-    parser.add_argument("--adapter", default="assemblyai", choices=["assemblyai"], help="Transcription adapter (default: assemblyai)")
+    parser.add_argument("--adapter", default="assemblyai", choices=["assemblyai", "whisperx"], help="Transcription adapter (default: assemblyai)")
     parser.add_argument("--skip-ingest", action="store_true", help="Skip Phase 1, use existing turns.json in output-dir")
     parser.add_argument("--skip-score", action="store_true", help="Skip Phase 2, use existing scored.json in output-dir")
     return parser.parse_args()

@@ -83,8 +83,12 @@ def build_speaker_stats(
     consistency_score = 1 - (position_shifts / len(speaker_turns)) if speaker_turns else 1.0
 
     # --- Concessions ---
-    concessions_made = (concession_counts or {}).get(speaker, 0)
-    concession_rate = concessions_made / len(speaker_turns) if speaker_turns else 0.0
+    speaker_conc = (concession_counts or {}).get(speaker, {"total": 0, "engaged": 0, "pivot": 0})
+    concessions_made = speaker_conc["total"]
+    concessions_engaged = speaker_conc["engaged"]
+    concessions_pivot = speaker_conc["pivot"]
+    # Only engaged concessions count toward score
+    concession_rate = concessions_engaged / len(speaker_turns) if speaker_turns else 0.0
 
     # --- Evidence density ---
     total_evidence_markers = sum(t.evidence_markers for t in speaker_turns)
@@ -119,6 +123,8 @@ def build_speaker_stats(
         position_shifts=position_shifts,
         consistency_score=round(consistency_score, 3),
         concessions_made=concessions_made,
+        concessions_engaged=concessions_engaged,
+        concessions_pivot=concessions_pivot,
         concession_rate=round(concession_rate, 4),
         avg_evidence_density=round(avg_evidence_density, 4),
         total_evidence_markers=total_evidence_markers,

@@ -116,7 +116,7 @@ def run(args):
     score_consistency(result.turns, turn_embeddings, debaters=result.debaters)
 
     print("Counting concessions...")
-    concession_counts = count_concessions(result.turns, debaters=result.debaters)
+    concession_counts = count_concessions(result.turns, turn_embeddings=turn_embeddings, debaters=result.debaters)
 
     print("Scoring evidence...")
     score_evidence(result.turns, debaters=result.debaters)
@@ -147,7 +147,7 @@ def run(args):
         claim_pct = f"({stats.claim_support_ratio:.0%})" if stats.total_claims > 0 else "(n/a)"
         corr_str = f"{stats.correction_absorption_rate:.0%}"
         cons_str = f"{stats.consistency_score:.2f}"
-        conc_str = f"{stats.concessions_made}"
+        conc_str = f"{stats.concessions_engaged}e/{stats.concessions_pivot}p"
         evid_str = f"{stats.avg_evidence_density:.3f}"
         print(
             f"{speaker:<22} {stats.overall_score:>5.1f} "
