@@ -7,6 +7,7 @@ def build_speaker_stats(
     turns: list[Turn],
     speaker: str,
     concession_counts: dict[str, int] | None = None,
+    debaters: list[str] | None = None,
 ) -> SpeakerStats:
     weights = config.SCORE_WEIGHTS
     speaker_turns = [t for t in turns if t.speaker == speaker]
@@ -129,6 +130,6 @@ def score_debate(result, concession_counts: dict[str, int] | None = None) -> Non
     """Mutates result.stats in place after all metrics have been run.
     Only builds stats for debaters, not moderators."""
     result.stats = {
-        speaker: build_speaker_stats(result.turns, speaker, concession_counts)
+        speaker: build_speaker_stats(result.turns, speaker, concession_counts, result.debaters)
         for speaker in result.debaters
     }
