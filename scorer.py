@@ -39,18 +39,31 @@ def build_speaker_stats(
     avg_topic_drift = mean(drift_scores) if drift_scores else 0.0
 
     # --- Correction absorption ---
+    # Count correction flags on this speaker's turns (unacknowledged corrections)
     correction_flags = [f for t in speaker_turns for f in t.flags if f.flag_type == "correction"]
-    from pipeline.metrics.correction import _is_correction_turn
+    # Count all factual correction events directed at this speaker
+    from pipeline.metrics.correction import _extract_claims, _has_conflicting_claims
+    turn_claims = {t.index: _extract_claims(t.text) for t in turns}
     corrections_received = 0
     for idx, t in enumerate(turns):
         if t.speaker == speaker:
             continue
-        if not _is_correction_turn(t.text):
+        if debaters and t.speaker not in debaters:
             continue
-        # Must follow an opponent's turn (directed at them)
-        if idx == 0 or turns[idx - 1].speaker == t.speaker:
+        claims = turn_claims[t.index]
+        if not claims:
             continue
-        # Check if next different-speaker turn is by this speaker
+        # Find opponent turn before this one (should be by 'speaker')
+        prev_opponent = None
+        for j in range(idx - 1, -1, -1):
+            if turns[j].speaker != t.speaker:
+                prev_opponent = turns[j]
+                break
+        if prev_opponent is None or prev_opponent.speaker != speaker:
+            continue
+        if not _has_conflicting_claims(claims, turn_claims[prev_opponent.index]):
+            continue
+        # This is a correction directed at 'speaker'. Check responder is 'speaker'.
         for j in range(idx + 1, len(turns)):
             if turns[j].speaker != t.speaker:
                 if turns[j].speaker == speaker:
