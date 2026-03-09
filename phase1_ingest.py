@@ -46,9 +46,9 @@ def format_duration(ms: int) -> str:
     return f"{minutes}m"
 
 
-def main():
+def run(args):
+    """Core ingestion logic. Called by main() or main.py wrapper."""
     load_dotenv()
-    args = parse_args()
 
     # Validate YouTube URL
     if not YOUTUBE_RE.match(args.url):
@@ -177,6 +177,11 @@ def main():
         os.rmdir(tmp_dir)
     except OSError:
         pass
+
+
+def main():
+    args = parse_args()
+    run(args)
 
 
 if __name__ == "__main__":

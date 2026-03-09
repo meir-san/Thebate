@@ -146,11 +146,11 @@
 </head>
 <body>
 
-{% if speakers | length >= 1 and speakers[0] in stats %}
-{% set sa = stats[speakers[0]] %}
+{% if debaters | length >= 1 and debaters[0] in stats %}
+{% set sa = stats[debaters[0]] %}
 <!-- Speaker A Card (top-left) -->
 <div class="speaker-card left">
-  <div class="card-name" style="color: var(--blue);">{{ speakers[0] }}</div>
+  <div class="card-name" style="color: var(--blue);">{{ debaters[0] }}</div>
   <div class="card-score" style="color: {{ sa.overall_score | score_color }};">{{ sa.overall_score }}</div>
   <div class="card-row">
     <span class="card-label">Engagement</span>
@@ -173,17 +173,17 @@
     <span class="card-value">{{ '%.0f' | format((1 - sa.avg_topic_drift) * 100) }}%</span>
   </div>
   <div class="card-footer">
-    {% set fc_a = [] %}{% for t in turns if t.speaker == speakers[0] %}{% for f in t.flags %}{% if fc_a.append(1) %}{% endif %}{% endfor %}{% endfor %}
-    Flags raised: {{ fc_a | length }} events
+    {% set fc_a = namespace(count=0) %}{% for t in turns if t.speaker == debaters[0] %}{% set fc_a.count = fc_a.count + t.flags | length %}{% endfor %}
+    Flags raised: {{ fc_a.count }} events
   </div>
 </div>
 {% endif %}
 
-{% if speakers | length >= 2 and speakers[1] in stats %}
-{% set sb = stats[speakers[1]] %}
+{% if debaters | length >= 2 and debaters[1] in stats %}
+{% set sb = stats[debaters[1]] %}
 <!-- Speaker B Card (top-right) -->
 <div class="speaker-card right">
-  <div class="card-name" style="color: var(--orange);">{{ speakers[1] }}</div>
+  <div class="card-name" style="color: var(--orange);">{{ debaters[1] }}</div>
   <div class="card-score" style="color: {{ sb.overall_score | score_color }};">{{ sb.overall_score }}</div>
   <div class="card-row">
     <span class="card-label">Engagement</span>
@@ -206,8 +206,8 @@
     <span class="card-value">{{ '%.0f' | format((1 - sb.avg_topic_drift) * 100) }}%</span>
   </div>
   <div class="card-footer">
-    {% set fc_b = [] %}{% for t in turns if t.speaker == speakers[1] %}{% for f in t.flags %}{% if fc_b.append(1) %}{% endif %}{% endfor %}{% endfor %}
-    Flags raised: {{ fc_b | length }} events
+    {% set fc_b = namespace(count=0) %}{% for t in turns if t.speaker == debaters[1] %}{% set fc_b.count = fc_b.count + t.flags | length %}{% endfor %}
+    Flags raised: {{ fc_b.count }} events
   </div>
 </div>
 {% endif %}
@@ -255,7 +255,7 @@
     <!-- Latest Flag Panel -->
     <div class="latest-flag-panel">
       {% if latest_flag %}
-      {% set lf_color = '#3b82f6' if latest_flag_turn.speaker == speakers[0] else '#f97316' %}
+      {% set lf_color = '#3b82f6' if latest_flag_turn.speaker == debaters[0] else '#f97316' %}
       <div class="lfp-header">
         <span class="lfp-badge {{ latest_flag.flag_type }}">{{ latest_flag.flag_type | replace('_', ' ') }}</span>
         <span class="lfp-speaker" style="color: {{ lf_color }};">{{ latest_flag_turn.speaker }}</span>
@@ -269,7 +269,7 @@
 
     <!-- Score Comparison -->
     <div class="score-compare">
-      {% for speaker in speakers %}
+      {% for speaker in debaters %}
       {% if speaker in stats %}
       {% set s = stats[speaker] %}
       {% set color = 'var(--blue)' if loop.index0 == 0 else 'var(--orange)' %}

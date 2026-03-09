@@ -19,9 +19,9 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
+def run(args):
+    """Core scoring logic. Called by main() or main.py wrapper."""
     load_dotenv()
-    args = parse_args()
 
     # Override config thresholds if provided
     if args.threshold_engagement is not None:
@@ -134,6 +134,11 @@ def main():
 
     print(f"\nSaved to: {args.output}")
     print(f"\n→ Next: python phase3_render.py --input {args.output}")
+
+
+def main():
+    args = parse_args()
+    run(args)
 
 
 if __name__ == "__main__":

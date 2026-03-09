@@ -78,12 +78,15 @@ def render_overlay(result: DebateResult, output_path: str) -> None:
     turns_by_index = {t.index: t for t in result.turns}
     speakers = result.speakers
 
-    latest_flag = all_flags[-1] if all_flags else None
+    debaters = result.debaters
+    debater_flags = [f for f in all_flags if turns_by_index[f.turn_index].speaker in debaters]
+    latest_flag = debater_flags[-1] if debater_flags else None
     latest_flag_turn = turns_by_index[latest_flag.turn_index] if latest_flag else None
 
     html = template.render(
         result=result,
         speakers=speakers,
+        debaters=debaters,
         stats=result.stats,
         turns=result.turns,
         flags=all_flags,

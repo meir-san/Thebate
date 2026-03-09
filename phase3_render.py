@@ -14,9 +14,8 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
-    args = parse_args()
-
+def run(args):
+    """Core rendering logic. Called by main() or main.py wrapper."""
     try:
         with open(args.input, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -38,6 +37,11 @@ def main():
 
     print(f"✓ Report saved to {args.report}")
     print(f"✓ Overlay saved to {args.overlay} (1920×1080, use as OBS Browser Source)")
+
+
+def main():
+    args = parse_args()
+    run(args)
 
 
 if __name__ == "__main__":
