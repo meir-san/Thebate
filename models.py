@@ -4,6 +4,8 @@ from typing import Literal
 FlagType = Literal[
     "dodge", "low_engagement", "topic_drift", "unsupported_claim",
     "correction", "position_shift", "low_evidence",
+    "ad_hominem", "strawman", "whataboutism", "red_herring",
+    "gish_gallop", "circular_reasoning", "false_dichotomy",
 ]
 
 
@@ -38,6 +40,19 @@ class Turn:
     topic_drift_score: float | None = None  # None = skipped (short turn)
     evidence_markers: int = 0
     evidence_density: float = 0.0
+    ad_hominem_count: int = 0
+    strawman_detected: bool = False
+    whataboutism_detected: bool = False
+    red_herring_detected: bool = False
+    gish_gallop_detected: bool = False
+    circular_reasoning_detected: bool = False
+    false_dichotomy_detected: bool = False
+    opponent_term_adoption: float | None = None
+    targeting_score: float | None = None
+    schemes: list[str] = field(default_factory=list)
+    scheme_diversity: float = 0.0
+    paraphrase_fidelity: float | None = None
+    engagement_quality_level: int | None = None
     flags: list[Flag] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -48,7 +63,20 @@ class Turn:
     @classmethod
     def from_dict(cls, d: dict) -> "Turn":
         flags = [Flag.from_dict(f) for f in d.pop("flags", [])]
-        return cls(**d, flags=flags)
+        schemes = d.pop("schemes", [])
+        d.setdefault("ad_hominem_count", 0)
+        d.setdefault("strawman_detected", False)
+        d.setdefault("whataboutism_detected", False)
+        d.setdefault("red_herring_detected", False)
+        d.setdefault("gish_gallop_detected", False)
+        d.setdefault("circular_reasoning_detected", False)
+        d.setdefault("false_dichotomy_detected", False)
+        d.setdefault("opponent_term_adoption", None)
+        d.setdefault("targeting_score", None)
+        d.setdefault("scheme_diversity", 0.0)
+        d.setdefault("paraphrase_fidelity", None)
+        d.setdefault("engagement_quality_level", None)
+        return cls(**d, flags=flags, schemes=schemes)
 
 
 @dataclass
@@ -74,7 +102,14 @@ class SpeakerStats:
     concession_rate: float              # higher = better (engaged only)
     avg_evidence_density: float         # higher = better
     total_evidence_markers: int
-    overall_score: float            # 0–100
+    fallacy_rate: float = 0.0           # fallacy flags / total turns
+    fallacy_counts: dict = field(default_factory=dict)  # per-type counts
+    avg_opponent_term_adoption: float = 0.0
+    avg_targeting_score: float = 0.0
+    scheme_diversity: float = 0.0
+    avg_paraphrase_fidelity: float = 0.0
+    avg_engagement_quality: float = 0.0
+    overall_score: float = 0.0         # 0–100
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -93,6 +128,14 @@ class SpeakerStats:
         d.setdefault("concession_rate", 0.0)
         d.setdefault("avg_evidence_density", 0.0)
         d.setdefault("total_evidence_markers", 0)
+        d.setdefault("fallacy_rate", 0.0)
+        d.setdefault("fallacy_counts", {})
+        d.setdefault("avg_opponent_term_adoption", 0.0)
+        d.setdefault("avg_targeting_score", 0.0)
+        d.setdefault("scheme_diversity", 0.0)
+        d.setdefault("avg_paraphrase_fidelity", 0.0)
+        d.setdefault("avg_engagement_quality", 0.0)
+        d.setdefault("overall_score", 0.0)
         return cls(**d)
 
 

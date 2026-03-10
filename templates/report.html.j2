@@ -107,6 +107,29 @@
   .flag-badge.correction { background: rgba(249,115,22,0.15); color: var(--orange); }
   .flag-badge.position_shift { background: rgba(56,189,248,0.15); color: #38bdf8; }
   .flag-badge.low_evidence { background: rgba(148,163,184,0.15); color: var(--text-dim); }
+  .flag-badge.ad_hominem { background: rgba(239,68,68,0.2); color: #f87171; }
+  .flag-badge.strawman { background: rgba(251,146,60,0.15); color: #fb923c; }
+  .flag-badge.whataboutism { background: rgba(234,179,8,0.2); color: #facc15; }
+  .flag-badge.red_herring { background: rgba(168,85,247,0.2); color: #c084fc; }
+  .flag-badge.gish_gallop { background: rgba(236,72,153,0.15); color: #f472b6; }
+  .flag-badge.circular_reasoning { background: rgba(20,184,166,0.15); color: #2dd4bf; }
+  .flag-badge.false_dichotomy { background: rgba(99,102,241,0.15); color: #818cf8; }
+  .flag-dot.ad_hominem { background: #f87171; }
+  .flag-dot.strawman { background: #fb923c; }
+  .flag-dot.whataboutism { background: #facc15; }
+  .flag-dot.red_herring { background: #c084fc; }
+  .flag-dot.gish_gallop { background: #f472b6; }
+  .flag-dot.circular_reasoning { background: #2dd4bf; }
+  .flag-dot.false_dichotomy { background: #818cf8; }
+  .fallacy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 48px; }
+  .fallacy-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+  .fallacy-card-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+  .fallacy-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .fallacy-row:last-child { border-bottom: none; }
+  .fallacy-name { color: var(--text-dim); text-transform: capitalize; }
+  .fallacy-count { font-weight: 700; }
+  .fallacy-count.zero { color: var(--green); }
+  .fallacy-count.nonzero { color: var(--red); }
   .flag-quote { font-style: italic; font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
   .flag-explanation { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
 
@@ -156,24 +179,34 @@
       <div class="score-card-number" style="color: {{ s.overall_score | score_color }};">{{ s.overall_score }}</div>
 
       <div class="mini-bar-row">
-        <span class="mini-bar-label">Engagement</span>
-        <div class="mini-bar-track"><div class="mini-bar-fill" style="width: {{ (s.avg_engagement * 100) | round(0) }}%; background: {{ color }};"></div></div>
-        <span class="mini-bar-value">{{ '%.0f' | format(s.avg_engagement * 100) }}%</span>
-      </div>
-      <div class="mini-bar-row">
-        <span class="mini-bar-label">Dodge Rate</span>
-        <div class="mini-bar-track"><div class="mini-bar-fill" style="width: {{ ((1 - s.dodge_rate) * 100) | round(0) }}%; background: {{ color }};"></div></div>
-        <span class="mini-bar-value">{{ '%.0f' | format(s.dodge_rate * 100) }}%</span>
-      </div>
-      <div class="mini-bar-row">
         <span class="mini-bar-label">Claim Support</span>
         <div class="mini-bar-track"><div class="mini-bar-fill" style="width: {{ (s.claim_support_ratio * 100) | round(0) }}%; background: {{ color }};"></div></div>
         <span class="mini-bar-value">{{ '%.0f' | format(s.claim_support_ratio * 100) }}%</span>
       </div>
       <div class="mini-bar-row">
-        <span class="mini-bar-label">Topic Focus</span>
-        <div class="mini-bar-track"><div class="mini-bar-fill" style="width: {{ ((1 - s.avg_topic_drift) * 100) | round(0) }}%; background: {{ color }};"></div></div>
-        <span class="mini-bar-value">{{ '%.0f' | format((1 - s.avg_topic_drift) * 100) }}%</span>
+        <span class="mini-bar-label">Eng. Quality</span>
+        <div class="mini-bar-track"><div class="mini-bar-fill" style="width: {{ (s.avg_engagement_quality * 100) | round(0) }}%; background: {{ color }};"></div></div>
+        <span class="mini-bar-value">{{ '%.0f' | format(s.avg_engagement_quality * 100) }}%</span>
+      </div>
+      <div class="mini-bar-row">
+        <span class="mini-bar-label">Fallacy-Free</span>
+        <div class="mini-bar-track"><div class="mini-bar-fill" style="width: {{ ((1 - s.fallacy_rate) * 100) | round(0) }}%; background: {{ color }};"></div></div>
+        <span class="mini-bar-value">{{ '%.0f' | format((1 - s.fallacy_rate) * 100) }}%</span>
+      </div>
+      <div class="mini-bar-row">
+        <span class="mini-bar-label">Targeting</span>
+        <div class="mini-bar-track"><div class="mini-bar-fill" style="width: {{ (s.avg_targeting_score * 100) | round(0) }}%; background: {{ color }};"></div></div>
+        <span class="mini-bar-value">{{ '%.0f' | format(s.avg_targeting_score * 100) }}%</span>
+      </div>
+      <div class="mini-bar-row">
+        <span class="mini-bar-label">Schemes</span>
+        <div class="mini-bar-track"><div class="mini-bar-fill" style="width: {{ (s.scheme_diversity * 100) | round(0) }}%; background: {{ color }};"></div></div>
+        <span class="mini-bar-value">{{ '%.0f' | format(s.scheme_diversity * 100) }}%</span>
+      </div>
+      <div class="mini-bar-row">
+        <span class="mini-bar-label">Dodge Rate</span>
+        <div class="mini-bar-track"><div class="mini-bar-fill" style="width: {{ ((1 - s.dodge_rate) * 100) | round(0) }}%; background: {{ color }};"></div></div>
+        <span class="mini-bar-value">{{ '%.0f' | format(s.dodge_rate * 100) }}%</span>
       </div>
 
       <div class="score-card-footer">
@@ -208,13 +241,20 @@
     <span>{{ (result.duration_ms * i / 4) | int | ms_to_timestamp }}</span>
     {% endfor %}
   </div>
-  <div class="timeline-legend">
+  <div class="timeline-legend" style="flex-wrap: wrap;">
     <span><span class="legend-dot" style="background: var(--red);"></span>Dodge</span>
     <span><span class="legend-dot" style="background: var(--yellow);"></span>Low Engagement</span>
     <span><span class="legend-dot" style="background: var(--purple);"></span>Topic Drift</span>
     <span><span class="legend-dot" style="background: var(--orange);"></span>Correction</span>
     <span><span class="legend-dot" style="background: #38bdf8;"></span>Position Shift</span>
     <span><span class="legend-dot" style="background: var(--text-dim);"></span>Low Evidence</span>
+    <span><span class="legend-dot" style="background: #f87171;"></span>Ad Hominem</span>
+    <span><span class="legend-dot" style="background: #fb923c;"></span>Strawman</span>
+    <span><span class="legend-dot" style="background: #facc15;"></span>Whataboutism</span>
+    <span><span class="legend-dot" style="background: #c084fc;"></span>Red Herring</span>
+    <span><span class="legend-dot" style="background: #f472b6;"></span>Gish Gallop</span>
+    <span><span class="legend-dot" style="background: #2dd4bf;"></span>Circular Reasoning</span>
+    <span><span class="legend-dot" style="background: #818cf8;"></span>False Dichotomy</span>
   </div>
 </section>
 
@@ -285,6 +325,36 @@
         <td class="{{ 'better' if sa.avg_evidence_density >= sb.avg_evidence_density else '' }}">{{ sa.avg_evidence_density }} avg · {{ sa.total_evidence_markers }} total</td>
         <td class="{{ 'better' if sb.avg_evidence_density >= sa.avg_evidence_density else '' }}">{{ sb.avg_evidence_density }} avg · {{ sb.total_evidence_markers }} total</td>
       </tr>
+      <tr>
+        <td class="metric-label">Fallacy Rate<br><small style="color:var(--text-dim);font-size:11px;">lower = cleaner argumentation</small></td>
+        <td class="{{ 'better' if sa.fallacy_rate <= sb.fallacy_rate else '' }}">{{ (sa.fallacy_rate * 100) | round(1) }}%</td>
+        <td class="{{ 'better' if sb.fallacy_rate <= sa.fallacy_rate else '' }}">{{ (sb.fallacy_rate * 100) | round(1) }}%</td>
+      </tr>
+      <tr>
+        <td class="metric-label">Engagement Quality<br><small style="color:var(--text-dim);font-size:11px;">DQI 0-3 normalized</small></td>
+        <td class="{{ 'better' if sa.avg_engagement_quality >= sb.avg_engagement_quality else '' }}">{{ (sa.avg_engagement_quality * 100) | round(0) | int }}%</td>
+        <td class="{{ 'better' if sb.avg_engagement_quality >= sa.avg_engagement_quality else '' }}">{{ (sb.avg_engagement_quality * 100) | round(0) | int }}%</td>
+      </tr>
+      <tr>
+        <td class="metric-label">Scheme Diversity<br><small style="color:var(--text-dim);font-size:11px;">variety of argumentation schemes</small></td>
+        <td class="{{ 'better' if sa.scheme_diversity >= sb.scheme_diversity else '' }}">{{ (sa.scheme_diversity * 100) | round(0) | int }}%</td>
+        <td class="{{ 'better' if sb.scheme_diversity >= sa.scheme_diversity else '' }}">{{ (sb.scheme_diversity * 100) | round(0) | int }}%</td>
+      </tr>
+      <tr>
+        <td class="metric-label">Targeting Score<br><small style="color:var(--text-dim);font-size:11px;">targets opponent's strongest points</small></td>
+        <td class="{{ 'better' if sa.avg_targeting_score >= sb.avg_targeting_score else '' }}">{{ (sa.avg_targeting_score * 100) | round(0) | int }}%</td>
+        <td class="{{ 'better' if sb.avg_targeting_score >= sa.avg_targeting_score else '' }}">{{ (sb.avg_targeting_score * 100) | round(0) | int }}%</td>
+      </tr>
+      <tr>
+        <td class="metric-label">Opponent Term Adoption<br><small style="color:var(--text-dim);font-size:11px;">engagement with opponent's key terms</small></td>
+        <td class="{{ 'better' if sa.avg_opponent_term_adoption >= sb.avg_opponent_term_adoption else '' }}">{{ (sa.avg_opponent_term_adoption * 100) | round(0) | int }}%</td>
+        <td class="{{ 'better' if sb.avg_opponent_term_adoption >= sa.avg_opponent_term_adoption else '' }}">{{ (sb.avg_opponent_term_adoption * 100) | round(0) | int }}%</td>
+      </tr>
+      <tr>
+        <td class="metric-label">Paraphrase Fidelity<br><small style="color:var(--text-dim);font-size:11px;">accuracy when restating opponent</small></td>
+        <td class="{{ 'better' if sa.avg_paraphrase_fidelity >= sb.avg_paraphrase_fidelity else '' }}">{{ (sa.avg_paraphrase_fidelity * 100) | round(0) | int }}%</td>
+        <td class="{{ 'better' if sb.avg_paraphrase_fidelity >= sa.avg_paraphrase_fidelity else '' }}">{{ (sb.avg_paraphrase_fidelity * 100) | round(0) | int }}%</td>
+      </tr>
       {% set fc_a = flag_counts.get(scored_speakers[0], 0) %}
       {% set fc_b = flag_counts.get(scored_speakers[1], 0) %}
       <tr>
@@ -296,6 +366,91 @@
     </tbody>
   </table>
 </section>
+
+<!-- Fallacy Breakdown -->
+{% if scored_speakers | length == 2 %}
+{% set sa = stats[scored_speakers[0]] %}
+{% set sb = stats[scored_speakers[1]] %}
+<section class="container" style="margin-bottom: 48px;">
+  <h2 class="section-title">Fallacy Breakdown</h2>
+  <div class="fallacy-grid">
+    {% for sp_idx in range(2) %}
+    {% set s = sa if sp_idx == 0 else sb %}
+    {% set color = '#3b82f6' if sp_idx == 0 else '#f97316' %}
+    <div class="fallacy-card" style="border-top: 3px solid {{ color }};">
+      <div class="fallacy-card-title" style="color: {{ color }};">{{ scored_speakers[sp_idx] }}</div>
+      {% for ftype in ['ad_hominem', 'strawman', 'whataboutism', 'red_herring', 'gish_gallop', 'circular_reasoning', 'false_dichotomy'] %}
+      {% set cnt = s.fallacy_counts.get(ftype, 0) %}
+      <div class="fallacy-row">
+        <span class="fallacy-name">{{ ftype | replace('_', ' ') }}</span>
+        <span class="fallacy-count {{ 'zero' if cnt == 0 else 'nonzero' }}">{{ cnt }}</span>
+      </div>
+      {% endfor %}
+      <div class="fallacy-row" style="border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px; font-weight: 700;">
+        <span class="fallacy-name" style="color: var(--text);">Total</span>
+        {% set total = s.fallacy_counts.values() | sum %}
+        <span class="fallacy-count {{ 'zero' if total == 0 else 'nonzero' }}">{{ total }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- Engagement Quality Distribution -->
+<section class="container" style="margin-bottom: 48px;">
+  <h2 class="section-title">Engagement Quality Distribution</h2>
+  <div class="fallacy-grid">
+    {% for sp_idx in range(2) %}
+    {% set sp = scored_speakers[sp_idx] %}
+    {% set color = '#3b82f6' if sp_idx == 0 else '#f97316' %}
+    {% set sp_turns = [] %}
+    {% for t in turns if t.speaker == sp %}{% if sp_turns.append(t) %}{% endif %}{% endfor %}
+    <div class="fallacy-card" style="border-top: 3px solid {{ color }};">
+      <div class="fallacy-card-title" style="color: {{ color }};">{{ sp }}</div>
+      {% set level_labels = {0: 'No Engagement', 1: 'Negative Only', 2: 'Basic Engagement', 3: 'Quality Engagement'} %}
+      {% set level_colors = {0: 'var(--red)', 1: 'var(--yellow)', 2: 'var(--text-dim)', 3: 'var(--green)'} %}
+      {% for lvl in range(4) %}
+      {% set cnt = sp_turns | selectattr('engagement_quality_level', 'equalto', lvl) | list | length %}
+      <div class="fallacy-row">
+        <span class="fallacy-name">Level {{ lvl }}: {{ level_labels[lvl] }}</span>
+        <span class="fallacy-count" style="color: {{ level_colors[lvl] }};">{{ cnt }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- Argumentation Schemes -->
+<section class="container" style="margin-bottom: 48px;">
+  <h2 class="section-title">Argumentation Schemes</h2>
+  <div class="fallacy-grid">
+    {% for sp_idx in range(2) %}
+    {% set sp = scored_speakers[sp_idx] %}
+    {% set color = '#3b82f6' if sp_idx == 0 else '#f97316' %}
+    {% set sp_turns = [] %}
+    {% for t in turns if t.speaker == sp %}{% if sp_turns.append(t) %}{% endif %}{% endfor %}
+    <div class="fallacy-card" style="border-top: 3px solid {{ color }};">
+      <div class="fallacy-card-title" style="color: {{ color }};">{{ sp }}</div>
+      {% set scheme_names = ['analogy', 'cause_effect', 'authority', 'example', 'sign', 'practical_reasoning', 'values'] %}
+      {% for scheme in scheme_names %}
+      {% set cnt = [] %}
+      {% for t in sp_turns %}{% for s in t.schemes if s == scheme %}{% if cnt.append(1) %}{% endif %}{% endfor %}{% endfor %}
+      <div class="fallacy-row">
+        <span class="fallacy-name">{{ scheme | replace('_', ' ') }}</span>
+        <span class="fallacy-count" style="color: {{ 'var(--green)' if cnt | length > 0 else 'var(--text-dim)' }};">{{ cnt | length }}</span>
+      </div>
+      {% endfor %}
+      {% set s_stat = sa if sp_idx == 0 else sb %}
+      <div class="fallacy-row" style="border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px;">
+        <span class="fallacy-name" style="color: var(--text); font-weight: 700;">Diversity</span>
+        <span class="fallacy-count" style="color: var(--text); font-weight: 700;">{{ (s_stat.scheme_diversity * 100) | round(0) | int }}%</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 
 <!-- Flag Log -->
 <section class="container flag-log-section">
@@ -336,12 +491,26 @@
 
   <p><strong>Evidence Density:</strong> Counts concrete evidence markers per turn — years, percentages, named sources, statistics, direct quotes. Higher = more evidence-backed.</p>
 
-  <pre>score = (avg_engagement × 25)
-      + ((1 − dodge_rate) × 20)
-      + (claim_support_ratio × 20)
-      + ((1 − avg_topic_drift) × 15)
-      + (concession_rate × 100 × 10)
-      + (evidence_density × 100 × 10)</pre>
+  <p><strong>Fallacy Detection:</strong> Identifies 7 logical fallacy patterns: ad hominem, strawman, whataboutism, red herring, Gish Gallop, circular reasoning, and false dichotomy. Combines regex patterns with semantic analysis.</p>
+
+  <p><strong>Engagement Quality:</strong> Classifies turns into DQI levels 0-3 based on cosine similarity, concession markers, and rebuttal indicators. Level 3 = quality engagement with substance.</p>
+
+  <p><strong>Argumentation Schemes:</strong> Detects 7 argument types (analogy, cause/effect, authority, example, sign, practical reasoning, values). Scheme diversity measures range across a speaker's turns.</p>
+
+  <p><strong>Targeting Score:</strong> Measures whether rebuttals address the opponent's strongest points (sentences with evidence, named entities, reasoning connectors) rather than weaker arguments.</p>
+
+  <pre>score = (claim_support_ratio × 15)
+      + (engagement_quality × 12)
+      + (correction_absorption × 12)
+      + ((1 − fallacy_rate) × 12)
+      + (targeting_score × 8)
+      + (paraphrase_fidelity × 8)
+      + (opponent_term_adoption × 8)
+      + (evidence_density × 100 × 8)
+      + ((1 − dodge_rate) × 7)
+      + (scheme_diversity × 5)
+      + ((1 − avg_topic_drift) × 3)
+      + (concession_rate × 100 × 2)</pre>
 
   <p class="disclaimer">No LLM judges the content or opinions expressed. All metrics are mathematical. Source code is open.</p>
 </section>

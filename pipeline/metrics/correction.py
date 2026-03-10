@@ -4,6 +4,8 @@ import numpy as np
 from models import Turn, Flag
 import config
 
+# --- Method A: Conflicting numeric claims ---
+
 _RE_NUMBER = re.compile(r"\b\d[\d,]*(?:\.\d+)?\b")
 _RE_YEAR = re.compile(r"\b(1[0-9]{3}|20[0-9]{2})\b")
 _RE_PERCENT = re.compile(r"\b\d+(?:\.\d+)?%")
@@ -18,7 +20,6 @@ def _extract_claims(text: str) -> set[str]:
         claims.add(m.group())
     for m in _RE_NUMBER.finditer(text):
         val = m.group().replace(",", "")
-        # Skip single-digit numbers (too generic: "1", "2", etc.)
         if len(val.replace(".", "")) <= 1:
             continue
         claims.add(val)
@@ -26,13 +27,9 @@ def _extract_claims(text: str) -> set[str]:
 
 
 def _has_conflicting_claims(claims_a: set[str], claims_b: set[str]) -> bool:
-    """Return True if both sets contain numeric/date claims but with differing values.
-    We check: both have claims, they overlap in TYPE (both have years, both have
-    numbers, etc.) but at least one value differs."""
+    """Return True if both sets contain numeric/date claims but with differing values."""
     if not claims_a or not claims_b:
         return False
-    # If they share any exact value, that's agreement not correction
-    # We want: same category of claim but different values
     years_a = {c for c in claims_a if _RE_YEAR.fullmatch(c)}
     years_b = {c for c in claims_b if _RE_YEAR.fullmatch(c)}
     if years_a and years_b and years_a != years_b:
@@ -51,14 +48,52 @@ def _has_conflicting_claims(claims_a: set[str], claims_b: set[str]) -> bool:
     return False
 
 
+# --- Method B: Semantic rebuttal detection ---
+
+_REBUTTAL_MARKERS = re.compile(
+    r"\b(?:"
+    r"no[,.]"
+    r"|that(?:'s| is) wrong"
+    r"|that(?:'s| is) not true"
+    r"|that(?:'s| is) not how"
+    r"|that(?:'s| is) incorrect"
+    r"|that(?:'s| is) false"
+    r"|you(?:'re| are) wrong"
+    r"|you(?:'re| are) mistaken"
+    r"|that doesn'?t"
+    r"|it doesn'?t work that way"
+    r"|that(?:'s| is) a misunderstanding"
+    r"|that(?:'s| is) not what"
+    r"|actually,"
+    r"|incorrect"
+    r"|the problem with that"
+    r"|that(?:'s| is) a straw\s?man"
+    r"|that makes no sense"
+    r"|that(?:'s| is) nonsense"
+    r"|that(?:'s| is) absurd"
+    r")",
+    re.IGNORECASE,
+)
+
+MIN_WORDS_REBUTTAL = 15
+
+
+def _is_semantic_rebuttal(text: str) -> bool:
+    """Return True if the turn contains a rebuttal marker and enough substance."""
+    if len(text.split()) < MIN_WORDS_REBUTTAL:
+        return False
+    return bool(_REBUTTAL_MARKERS.search(text))
+
+
 def score_corrections(
     turns: list[Turn],
     turn_embeddings: dict[int, np.ndarray],
     debaters: list[str] | None = None,
 ) -> None:
-    """Mutates turns in place. Detects factual correction events by finding
-    consecutive opponent turns with conflicting numeric/date claims, then
-    checks if the corrected speaker acknowledges the correction."""
+    """Mutates turns in place. Detects correction events using two methods:
+    A) Conflicting numeric/date claims between consecutive opponent turns
+    B) Semantic rebuttal markers with substantive content
+    Then checks if the corrected speaker acknowledges the correction."""
     threshold = config.THRESHOLD_CORRECTION
 
     # Pre-extract claims for all turns
@@ -66,9 +101,6 @@ def score_corrections(
 
     for i, turn in enumerate(turns):
         if debaters and turn.speaker not in debaters:
-            continue
-        claims = turn_claims[turn.index]
-        if not claims:
             continue
 
         # Find the most recent opponent turn before this one
@@ -82,8 +114,16 @@ def score_corrections(
         if debaters and prev_opponent.speaker not in debaters:
             continue
 
-        prev_claims = turn_claims[prev_opponent.index]
-        if not _has_conflicting_claims(claims, prev_claims):
+        # Method A: conflicting numeric claims
+        is_correction = _has_conflicting_claims(
+            turn_claims[turn.index], turn_claims[prev_opponent.index]
+        )
+
+        # Method B: semantic rebuttal markers
+        if not is_correction:
+            is_correction = _is_semantic_rebuttal(turn.text)
+
+        if not is_correction:
             continue
 
         # This turn is a correction of prev_opponent. Find prev_opponent's next response.
@@ -109,7 +149,7 @@ def score_corrections(
                 score=similarity,
                 threshold=threshold,
                 explanation=(
-                    f"Factual correction from {turn.speaker} not acknowledged — "
+                    f"Correction from {turn.speaker} not acknowledged — "
                     f"similarity: {similarity:.2f} (threshold: {threshold:.2f})"
                 ),
             ))

@@ -28,6 +28,35 @@ FILLER_QUESTIONS = [
 
 _FILLER_RES = [re.compile(p, re.IGNORECASE) for p in FILLER_QUESTIONS]
 
+STOPWORDS = {
+    "about", "after", "also", "been", "before", "being", "between", "both",
+    "could", "does", "doing", "down", "during", "each", "even", "every",
+    "from", "have", "having", "here", "into", "just", "know", "like",
+    "make", "many", "more", "most", "much", "must", "only", "other",
+    "over", "same", "should", "some", "such", "than", "that", "their",
+    "them", "then", "there", "these", "they", "thing", "things", "think",
+    "this", "those", "through", "very", "want", "were", "what", "when",
+    "where", "which", "while", "will", "with", "would", "your", "you're",
+    "don't", "doesn't", "didn't", "isn't", "aren't", "wasn't", "weren't",
+    "won't", "wouldn't", "can't", "couldn't", "shouldn't",
+}
+
+
+def _extract_key_terms(text: str) -> set[str]:
+    """Extract content words (>4 chars, not stopwords) from text."""
+    words = re.findall(r"[a-zA-Z']+", text.lower())
+    return {w for w in words if len(w) > 4 and w not in STOPWORDS}
+
+
+def _has_keyword_overlap(question: str, response: str, min_overlap: int = 2) -> bool:
+    """Return True if the response contains enough key terms from the question."""
+    q_terms = _extract_key_terms(question)
+    if len(q_terms) < min_overlap:
+        return False
+    r_terms = _extract_key_terms(response)
+    overlap = q_terms & r_terms
+    return len(overlap) >= min_overlap
+
 
 def _is_filler_question(q: str) -> bool:
     """Return True if the question is too short or matches a filler pattern."""
@@ -111,6 +140,9 @@ def score_dodges(
             similarity = float(np.dot(q_emb, responder_emb))
 
             if similarity < threshold:
+                # Skip if response shares key terms with the question
+                if _has_keyword_overlap(question_text, responder_turn.text):
+                    continue
                 responder_turn.is_dodge = True
                 q_preview = question_text[:80] + "..." if len(question_text) > 80 else question_text
                 responder_turn.flags.append(Flag(

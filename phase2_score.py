@@ -95,6 +95,18 @@ def run(args):
     from pipeline.metrics.consistency import score_consistency
     from pipeline.metrics.concession import count_concessions
     from pipeline.metrics.evidence import score_evidence
+    from pipeline.metrics.ad_hominem import score_ad_hominem
+    from pipeline.metrics.strawman import score_strawman
+    from pipeline.metrics.whataboutism import score_whataboutism
+    from pipeline.metrics.red_herring import score_red_herring
+    from pipeline.metrics.gish_gallop import score_gish_gallop
+    from pipeline.metrics.circular_reasoning import score_circular_reasoning
+    from pipeline.metrics.false_dichotomy import score_false_dichotomy
+    from pipeline.metrics.argument_flow import score_argument_flow
+    from pipeline.metrics.strongest_point_targeting import score_strongest_point_targeting
+    from pipeline.metrics.argumentation_schemes import score_argumentation_schemes
+    from pipeline.metrics.paraphrase_fidelity import score_paraphrase_fidelity
+    from pipeline.metrics.engagement_quality import score_engagement_quality
     from scorer import score_debate
 
     print("Scoring claims (with deduplication)...")
@@ -121,6 +133,42 @@ def run(args):
     print("Scoring evidence...")
     score_evidence(result.turns, debaters=result.debaters)
 
+    print("Detecting ad hominem...")
+    score_ad_hominem(result.turns, debaters=result.debaters)
+
+    print("Detecting strawman...")
+    score_strawman(result.turns, turn_embeddings, embedder, debaters=result.debaters)
+
+    print("Detecting whataboutism...")
+    score_whataboutism(result.turns, turn_embeddings, debaters=result.debaters)
+
+    print("Detecting red herring...")
+    score_red_herring(result.turns, turn_embeddings, debaters=result.debaters)
+
+    print("Detecting gish gallop...")
+    score_gish_gallop(result.turns, debaters=result.debaters)
+
+    print("Detecting circular reasoning...")
+    score_circular_reasoning(result.turns, turn_embeddings, embedder, debaters=result.debaters)
+
+    print("Detecting false dichotomy...")
+    score_false_dichotomy(result.turns, debaters=result.debaters)
+
+    print("Scoring argument flow...")
+    score_argument_flow(result.turns, debaters=result.debaters)
+
+    print("Scoring strongest point targeting...")
+    score_strongest_point_targeting(result.turns, turn_embeddings, embedder, debaters=result.debaters)
+
+    print("Scoring argumentation schemes...")
+    score_argumentation_schemes(result.turns, debaters=result.debaters)
+
+    print("Scoring paraphrase fidelity...")
+    score_paraphrase_fidelity(result.turns, turn_embeddings, embedder, debaters=result.debaters)
+
+    print("Scoring engagement quality...")
+    score_engagement_quality(result.turns, turn_embeddings, debaters=result.debaters)
+
     print("Building speaker stats...")
     score_debate(result, concession_counts=concession_counts)
 
@@ -135,27 +183,29 @@ def run(args):
 
     # Print summary table
     header = (
-        f"{'Speaker':<22} {'Score':>5} {'Eng':>5} {'Dodges':>10} "
-        f"{'Claims':>12} {'Drift':>5} {'Correct':>7} "
-        f"{'Consist':>7} {'Concess':>7} {'Evidence':>8}"
+        f"{'Speaker':<22} {'Score':>5} {'Fallacy':>8} {'EngQ':>5} "
+        f"{'Schemes':>7} {'Target':>7} {'Dodge':>7} "
+        f"{'Claims':>12} {'Correct':>7} {'Evidence':>8}"
     )
     print(f"\n{header}")
     for speaker, stats in result.stats.items():
+        total_fallacies = sum(stats.fallacy_counts.values())
+        fallacy_str = f"{total_fallacies} ({stats.fallacy_rate:.0%})"
+        eq_str = f"{stats.avg_engagement_quality:.2f}"
+        scheme_str = f"{stats.scheme_diversity:.2f}"
+        target_str = f"{stats.avg_targeting_score:.2f}"
         dodge_str = f"{stats.total_dodges}/{stats.questions_faced}"
-        dodge_pct = f"({stats.dodge_rate:.0%})" if stats.questions_faced > 0 else "(n/a)"
         claim_str = f"{stats.supported_claims}/{stats.total_claims}"
         claim_pct = f"({stats.claim_support_ratio:.0%})" if stats.total_claims > 0 else "(n/a)"
         corr_str = f"{stats.correction_absorption_rate:.0%}"
-        cons_str = f"{stats.consistency_score:.2f}"
-        conc_str = f"{stats.concessions_engaged}e/{stats.concessions_pivot}p"
         evid_str = f"{stats.avg_evidence_density:.3f}"
         print(
             f"{speaker:<22} {stats.overall_score:>5.1f} "
-            f"{stats.avg_engagement:>5.2f} "
-            f"{dodge_str:>5} {dodge_pct:<5}"
+            f"{fallacy_str:>8} {eq_str:>5} "
+            f"{scheme_str:>7} {target_str:>7} "
+            f"{dodge_str:>7} "
             f"{claim_str:>5} {claim_pct:<5} "
-            f"{stats.avg_topic_drift:>5.2f} "
-            f"{corr_str:>7} {cons_str:>7} {conc_str:>7} {evid_str:>8}"
+            f"{corr_str:>7} {evid_str:>8}"
         )
 
     print(f"\nSaved to: {args.output}")

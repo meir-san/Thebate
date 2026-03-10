@@ -1,7 +1,7 @@
 # Thresholds
 THRESHOLD_ENGAGEMENT = 0.25
-THRESHOLD_DODGE = 0.20        # Lower than engagement — real responses in conversational speech
-                               # often score 0.25–0.35 naturally, so 0.20 avoids false positives
+THRESHOLD_DODGE = 0.12        # Conservative — catches real dodges (topic changes) without flagging
+                               # responses that address the question with different framing
 THRESHOLD_TOPIC_DRIFT = 0.78
 
 # Short turn word cutoffs — turns below these are excluded from scoring
@@ -14,15 +14,19 @@ THRESHOLD_CONSISTENCY = 0.25
 MIN_WORDS_EVIDENCE = 50          # Flag turns over this length with zero evidence markers
 
 # Score weights — must sum to 100
-# consistency excluded from formula until reliable
 SCORE_WEIGHTS = {
-    "engagement": 15,
-    "dodge": 15,
-    "reasoning": 15,
-    "drift": 10,
-    "correction": 25,
-    "concession": 10,
-    "evidence": 10,
+    "premise_sufficiency": 15,
+    "engagement_quality": 12,
+    "correction": 12,
+    "fallacy_free": 12,
+    "argument_depth": 8,
+    "response_specificity": 8,
+    "opponent_engagement": 8,
+    "evidence": 8,
+    "dodge": 7,
+    "scheme_diversity": 5,
+    "drift": 3,
+    "concession": 2,
 }
 
 # Embedding model
