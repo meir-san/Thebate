@@ -97,8 +97,8 @@ def run(args):
     from pipeline.metrics.evidence import score_evidence
     from scorer import score_debate
 
-    print("Scoring claims...")
-    score_claims(result.turns)
+    print("Scoring claims (with deduplication)...")
+    score_claims(result.turns, embedder=embedder)
 
     print("Scoring engagement...")
     score_engagement(result.turns, turn_embeddings, debaters=result.debaters)

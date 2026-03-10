@@ -96,12 +96,13 @@ def build_speaker_stats(
     avg_evidence_density = mean(densities) if densities else 0.0
 
     # --- Overall score ---
-    # correction and consistency tracked but excluded from formula until reliable
+    # consistency tracked but excluded from formula until reliable
     overall_score = (
         avg_engagement * weights["engagement"] +
         (1 - dodge_rate) * weights["dodge"] +
         claim_support_ratio * weights["reasoning"] +
         (1 - avg_topic_drift) * weights["drift"] +
+        correction_absorption_rate * weights["correction"] +
         (concession_rate * 100) * weights["concession"] +
         (avg_evidence_density * 100) * weights["evidence"]
     )

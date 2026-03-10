@@ -14,6 +14,43 @@ _RE_NAMED_SOURCE = re.compile(
 )
 _RE_DIRECT_QUOTE = re.compile(r'["\u201c]([^"\u201d]{12,})["\u201d]')
 
+# Scientific/academic references
+_RE_SCIENTIFIC = re.compile(
+    r"\b(?:the\s+(?:theory|law|laws)\s+of|experiment|observation|hypothesis|"
+    r"peer[\s-]reviewed|published\s+in|the\s+study)\b",
+    re.IGNORECASE,
+)
+
+# Named concepts/theories — capitalized terms after framing phrases
+_RE_NAMED_CONCEPT = re.compile(
+    r"\b(?:the\s+(?:principle|concept|model|theory|law)\s+of)\s+"
+    r"([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)",
+)
+
+# Logical structure markers
+_RE_LOGICAL = re.compile(
+    r"\b(?:if\b.{1,40}\bthen\b|it\s+follows\s+that|this\s+contradicts|"
+    r"this\s+is\s+inconsistent\s+with|by\s+that\s+logic|"
+    r"the\s+implication\s+is|logically)\b",
+    re.IGNORECASE,
+)
+
+# Empirical references
+_RE_EMPIRICAL = re.compile(
+    r"\b(?:you\s+can\s+(?:observe|measure|test|verify)|"
+    r"we\s+can\s+(?:see|verify|observe|measure|test)|"
+    r"the\s+(?:data|evidence)\s+(?:shows|suggests|indicates|demonstrates)|"
+    r"demonstrably|empirically|measurably)\b",
+    re.IGNORECASE,
+)
+
+# Methodological references
+_RE_METHODOLOGICAL = re.compile(
+    r"\b(?:controlled\s+experiment|sample\s+size|replication|falsifiable|"
+    r"peer\s+review|scientific\s+method|burden\s+of\s+proof)\b",
+    re.IGNORECASE,
+)
+
 
 def _count_evidence_markers(text: str) -> int:
     count = 0
@@ -22,6 +59,11 @@ def _count_evidence_markers(text: str) -> int:
     count += len(_RE_STAT_NUMBER.findall(text))
     count += len(_RE_NAMED_SOURCE.findall(text))
     count += len(_RE_DIRECT_QUOTE.findall(text))
+    count += len(_RE_SCIENTIFIC.findall(text))
+    count += len(_RE_NAMED_CONCEPT.findall(text))
+    count += len(_RE_LOGICAL.findall(text))
+    count += len(_RE_EMPIRICAL.findall(text))
+    count += len(_RE_METHODOLOGICAL.findall(text))
     return count
 
 

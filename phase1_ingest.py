@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from models import DebateResult
 from pipeline.turn_builder import build_turns
+from speaker_assign import assign_speakers_interactive, apply_mapping
 
 YOUTUBE_RE = re.compile(r'(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/)[\w-]+')
 
@@ -19,10 +20,14 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Phase 1: Ingest YouTube debate video into diarized turns.")
     parser.add_argument("--url", required=True, help="Full YouTube URL")
     parser.add_argument("--topic", required=True, help="Debate topic in plain English")
-    parser.add_argument("--speakers", default=None, help="Comma-separated real names in order of first appearance")
+    parser.add_argument("--speakers", default=None, help="Comma-separated real names in order of first appearance (skips interactive assignment)")
     parser.add_argument("--debaters", default=None, help="Comma-separated names of speakers to score (must be subset of --speakers). If omitted, all speakers are debaters.")
     parser.add_argument("--output", default="turns.json", help="Output JSON path (default: turns.json)")
-    parser.add_argument("--adapter", default="assemblyai", choices=["assemblyai", "whisperx"], help="Transcription adapter")
+    parser.add_argument("--adapter", default="assemblyai", choices=["assemblyai", "whisperx", "pyannote-api"], help="Transcription adapter")
+    parser.add_argument("--voiceprints", default=None, help="JSON file mapping speaker names to pyannoteAI voiceprint strings (for --adapter pyannote-api). Enroll voiceprints via pyannoteAI dashboard or API first")
+    parser.add_argument("--speakers-dir", default="./speakers/", help="Directory with enrolled speaker .npy embeddings (default: ./speakers/)")
+    parser.add_argument("--auto-enroll", action="store_true", help="Run interactive auto-enrollment if speakers dir is empty (whisperx only)")
+    parser.add_argument("--enroll-model", default="base", help="WhisperX model for enrollment transcription (default: base). Use base or small for fast enrollment — accuracy doesn't matter for speaker ID")
     return parser.parse_args()
 
 
@@ -64,6 +69,10 @@ def run(args):
         print("Error: HF_TOKEN not set.")
         print("Add HF_TOKEN=hf_xxx to your .env file.")
         sys.exit(1)
+    if args.adapter == "pyannote-api" and not os.environ.get("PYANNOTE_API_KEY"):
+        print("Error: PYANNOTE_API_KEY not set.")
+        print("Get an API key at https://dashboard.pyannote.ai")
+        sys.exit(1)
 
     # Get video metadata
     metadata = get_video_metadata(args.url)
@@ -92,11 +101,26 @@ def run(args):
         print("Video may be private or region-locked.")
         sys.exit(1)
 
+    # Auto-enroll if requested and speakers dir is empty
+    if args.auto_enroll and args.adapter == "whisperx":
+        import glob
+        existing = glob.glob(os.path.join(args.speakers_dir, "*.npy"))
+        if not existing:
+            print("No enrolled speakers found — running auto-enrollment...")
+            from auto_enroll import run_auto_enroll
+            run_auto_enroll(tmp_path, args.speakers_dir, enroll_model=args.enroll_model)
+        else:
+            print(f"Found {len(existing)} enrolled speaker(s), skipping auto-enrollment.")
+
     # Transcribe
     if args.adapter == "whisperx":
         print("Transcribing with WhisperX (this may take a while)...")
         from adapters.whisperx_adapter import WhisperXAdapter
-        adapter = WhisperXAdapter()
+        adapter = WhisperXAdapter(speakers_dir=args.speakers_dir)
+    elif args.adapter == "pyannote-api":
+        print("Transcribing with pyannoteAI cloud API...")
+        from adapters.pyannote_api_adapter import PyannoteAPIAdapter
+        adapter = PyannoteAPIAdapter(voiceprints_path=args.voiceprints)
     else:
         print("Transcribing with AssemblyAI (this may take a few minutes)...")
         from adapters.assemblyai_adapter import AssemblyAIAdapter
@@ -106,8 +130,9 @@ def run(args):
     # Build turns
     turns = build_turns(segments)
 
-    # Apply speaker name mapping
+    # Speaker assignment
     if args.speakers:
+        # Fast path: use --speakers flag directly
         names = [n.strip() for n in args.speakers.split(",")]
         speaker_labels = []
         for t in turns:
@@ -122,52 +147,12 @@ def run(args):
         for i, label in enumerate(speaker_labels):
             if i < len(names):
                 mapping[label] = names[i]
+        apply_mapping(turns, mapping)
+    else:
+        # Interactive assignment
+        mapping = assign_speakers_interactive(turns)
+        apply_mapping(turns, mapping)
 
-        if mapping:
-            parts = ", ".join(f"{k} → {v}" for k, v in mapping.items())
-            print(f"Speaker mapping: {parts}")
-
-        # Show first turn preview and confirm
-        while True:
-            # Apply current mapping
-            for t in turns:
-                if t.speaker in mapping:
-                    t.speaker = mapping[t.speaker]
-
-            # Show preview of each speaker's first turn
-            print("\nSpeaker previews (first 20 words of first turn):")
-            seen_speakers = []
-            for t in turns:
-                if t.speaker not in seen_speakers:
-                    seen_speakers.append(t.speaker)
-                    words = t.text.split()[:20]
-                    preview = " ".join(words)
-                    if len(t.text.split()) > 20:
-                        preview += "..."
-                    print(f"  {t.speaker}: \"{preview}\"")
-
-            confirm = input("\nIs this mapping correct? [Y/n] ").strip().lower()
-            if confirm in ("", "y", "yes"):
-                break
-
-            # Let user re-enter names — first revert to original labels
-            for t in turns:
-                for label, name in mapping.items():
-                    if t.speaker == name:
-                        t.speaker = label
-                        break
-
-            new_names_str = input(
-                f"Re-enter speaker names in order of first appearance "
-                f"({len(speaker_labels)} speakers, comma-separated): "
-            ).strip()
-            names = [n.strip() for n in new_names_str.split(",")]
-            if len(names) != len(speaker_labels):
-                print(f"Expected {len(speaker_labels)} names, got {len(names)}. Try again.")
-                continue
-            mapping = {label: name for label, name in zip(speaker_labels, names)}
-            parts = ", ".join(f"{k} → {v}" for k, v in mapping.items())
-            print(f"New mapping: {parts}")
     # Build speaker list in order of first appearance
     speakers = []
     for t in turns:

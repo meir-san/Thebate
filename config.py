@@ -14,12 +14,13 @@ THRESHOLD_CONSISTENCY = 0.25
 MIN_WORDS_EVIDENCE = 50          # Flag turns over this length with zero evidence markers
 
 # Score weights — must sum to 100
-# correction and consistency excluded from formula until reliable
+# consistency excluded from formula until reliable
 SCORE_WEIGHTS = {
-    "engagement": 25,
-    "dodge": 20,
-    "reasoning": 20,
-    "drift": 15,
+    "engagement": 15,
+    "dodge": 15,
+    "reasoning": 15,
+    "drift": 10,
+    "correction": 25,
     "concession": 10,
     "evidence": 10,
 }
