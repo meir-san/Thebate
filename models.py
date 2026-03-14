@@ -53,6 +53,23 @@ class Turn:
     scheme_diversity: float = 0.0
     paraphrase_fidelity: float | None = None
     engagement_quality_level: int | None = None
+    premise_sufficiency: float | None = None
+    argument_depth: float | None = None
+    response_specificity: float | None = None
+    logical_coherence: float | None = None
+    entailment_score: float | None = None
+    counterargument_relevance: float | None = None
+    discourse_quality: float | None = None
+    # Preprocessor fields (set by pipeline/preprocessor.py)
+    dialogue_act: str | None = None       # backchannel, fragment, question, agreement, disagreement, statement
+    clean_text: str | None = None         # text with fillers/disfluencies removed
+    score_this: bool = True               # False for backchannels, fragments, merged turns
+    exchange_id: int | None = None        # which argument exchange this turn belongs to
+    merged_into: int | None = None        # if merged, the index of the turn it was merged into
+    # Structure extraction fields (set by pipeline/structure_extractor.py)
+    speech_act: str | None = None         # claim, rebuttal, challenge, correction, dismissal, insult, agreement, explanation, concession
+    proposition: str | None = None        # core proposition extracted by LLM
+    responds_to_opponent: bool | None = None  # whether turn directly addresses opponent's prior point
     flags: list[Flag] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -76,6 +93,25 @@ class Turn:
         d.setdefault("scheme_diversity", 0.0)
         d.setdefault("paraphrase_fidelity", None)
         d.setdefault("engagement_quality_level", None)
+        d.setdefault("premise_sufficiency", None)
+        d.setdefault("argument_depth", None)
+        d.setdefault("response_specificity", None)
+        d.setdefault("logical_coherence", None)
+        d.setdefault("entailment_score", None)
+        d.setdefault("counterargument_relevance", None)
+        d.setdefault("discourse_quality", None)
+        d.setdefault("dialogue_act", None)
+        d.setdefault("clean_text", None)
+        d.setdefault("score_this", True)
+        d.setdefault("exchange_id", None)
+        d.setdefault("merged_into", None)
+        d.setdefault("speech_act", None)
+        d.setdefault("proposition", None)
+        d.setdefault("responds_to_opponent", None)
+        # Backward compat: drop removed fields from old JSON
+        d.pop("provides_reasoning", None)
+        d.pop("evidence_type", None)
+        d.pop("is_substantive", None)
         return cls(**d, flags=flags, schemes=schemes)
 
 
@@ -109,6 +145,31 @@ class SpeakerStats:
     scheme_diversity: float = 0.0
     avg_paraphrase_fidelity: float = 0.0
     avg_engagement_quality: float = 0.0
+    premise_sufficiency_score: float = 0.0
+    argument_depth_score: float = 0.0
+    response_specificity_score: float = 0.0
+    logical_coherence_score: float = 0.0
+    graph_coherence_score: float = 0.0
+    avg_entailment_score: float = 0.0
+    avg_counterargument_relevance: float = 0.0
+    argument_coverage_score: float = 0.0
+    conversational_flow_score: float = 0.0
+    discourse_quality_score: float = 0.0
+    claim_defense_rate: float = 0.0
+    claims_challenged: int = 0
+    claims_defended: int = 0
+    claims_abandoned: int = 0
+    retreat_pivot_rate: float = 0.0
+    # Structure extraction stats
+    explanation_count: int = 0
+    correction_count: int = 0
+    challenge_count: int = 0
+    dismissal_count: int = 0
+    insult_count: int = 0
+    rebuttal_count: int = 0
+    responds_to_opponent_rate: float = 0.0
+    substance_share: float = 0.0
+    explain_attack_ratio: float = 0.0
     overall_score: float = 0.0         # 0–100
 
     def to_dict(self) -> dict:
@@ -135,6 +196,30 @@ class SpeakerStats:
         d.setdefault("scheme_diversity", 0.0)
         d.setdefault("avg_paraphrase_fidelity", 0.0)
         d.setdefault("avg_engagement_quality", 0.0)
+        d.setdefault("premise_sufficiency_score", 0.0)
+        d.setdefault("argument_depth_score", 0.0)
+        d.setdefault("response_specificity_score", 0.0)
+        d.setdefault("logical_coherence_score", 0.0)
+        d.setdefault("graph_coherence_score", 0.0)
+        d.setdefault("avg_entailment_score", 0.0)
+        d.setdefault("avg_counterargument_relevance", 0.0)
+        d.setdefault("argument_coverage_score", 0.0)
+        d.setdefault("conversational_flow_score", 0.0)
+        d.setdefault("discourse_quality_score", 0.0)
+        d.setdefault("claim_defense_rate", 0.0)
+        d.setdefault("claims_challenged", 0)
+        d.setdefault("claims_defended", 0)
+        d.setdefault("claims_abandoned", 0)
+        d.setdefault("retreat_pivot_rate", 0.0)
+        d.setdefault("explanation_count", 0)
+        d.setdefault("correction_count", 0)
+        d.setdefault("challenge_count", 0)
+        d.setdefault("dismissal_count", 0)
+        d.setdefault("insult_count", 0)
+        d.setdefault("rebuttal_count", 0)
+        d.setdefault("responds_to_opponent_rate", 0.0)
+        d.setdefault("substance_share", 0.0)
+        d.setdefault("explain_attack_ratio", 0.0)
         d.setdefault("overall_score", 0.0)
         return cls(**d)
 

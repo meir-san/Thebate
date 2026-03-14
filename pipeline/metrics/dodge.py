@@ -95,7 +95,43 @@ def score_dodges(
     """Mutates turns in place. Sets turn.is_dodge and appends to turn.flags.
     If debaters is provided, only extracts questions from turns where the questioner
     is in debaters. Moderator questions are not scored as dodges.
+
+    If speech_act data exists, also counts opponent "challenge" turns where
+    the speaker's response has responds_to_opponent == False as dodges.
     """
+    # Structure-based dodge detection (supplements regex)
+    has_structure = any(t.speech_act is not None for t in turns)
+    if has_structure:
+        for i, turn in enumerate(turns):
+            if debaters and turn.speaker not in debaters:
+                continue
+            if turn.speech_act != "challenge":
+                continue
+
+            # Find the next turn by a different speaker (the responder)
+            responder_turn = None
+            for j in range(i + 1, len(turns)):
+                if turns[j].speaker != turn.speaker:
+                    responder_turn = turns[j]
+                    break
+            if responder_turn is None:
+                continue
+            if debaters and responder_turn.speaker not in debaters:
+                continue
+
+            if responder_turn.responds_to_opponent is False:
+                responder_turn.is_dodge = True
+                responder_turn.flags.append(Flag(
+                    turn_index=responder_turn.index,
+                    flag_type="dodge",
+                    score=0.0,
+                    threshold=0.0,
+                    explanation=(
+                        f"Challenge from {turn.speaker} not addressed — "
+                        f"responds_to_opponent=False"
+                    ),
+                ))
+
     threshold = config.THRESHOLD_DODGE
 
     for i, turn in enumerate(turns):

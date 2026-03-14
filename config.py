@@ -15,19 +15,13 @@ MIN_WORDS_EVIDENCE = 50          # Flag turns over this length with zero evidenc
 
 # Score weights — must sum to 100
 SCORE_WEIGHTS = {
-    "premise_sufficiency": 15,
-    "engagement_quality": 12,
-    "correction": 12,
-    "fallacy_free": 12,
-    "argument_depth": 8,
-    "response_specificity": 8,
-    "opponent_engagement": 8,
-    "evidence": 8,
-    "dodge": 7,
-    "scheme_diversity": 5,
-    "drift": 3,
-    "concession": 2,
+    "responds_to_opponent_rate": 85,
+    "substance_share": 15,
 }
+
+# Ollama remote LLM
+OLLAMA_URL = "http://100.103.53.6:11434"
+OLLAMA_MODEL = "qwen2.5:14b"
 
 # Embedding model
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"

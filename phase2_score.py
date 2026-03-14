@@ -54,13 +54,29 @@ def run(args):
         print(f"Details: {e}")
         sys.exit(1)
 
-    # Batch 1: embed all turn texts
-    print("Embedding turn texts...")
-    turn_texts = [t.text for t in result.turns]
+    # Preprocess: classify dialogue acts, merge interrupted arguments, clean text, exclude non-argumentative turns
+    print("\nPreprocessing transcript...")
+    from pipeline.preprocessor import preprocess
+    # Embed all turns first (needed for exchange building)
+    print("Embedding turn texts (raw, for exchange building)...")
+    raw_texts = [t.text for t in result.turns]
+    raw_embs_array = embedder.embed_batch(raw_texts)
+    raw_turn_embeddings: dict[int, any] = {
+        t.index: raw_embs_array[i] for i, t in enumerate(result.turns)
+    }
+    exchanges = preprocess(result.turns, turn_embeddings=raw_turn_embeddings, debaters=result.debaters)
+
+    # Batch 1: embed texts for all scoring metrics
+    # Prefer proposition (from structure extraction) > clean_text > raw text
+    print("Embedding turn texts (proposition > clean > raw)...")
+    turn_texts = [t.proposition or t.clean_text or t.text for t in result.turns]
     turn_embs_array = embedder.embed_batch(turn_texts)
     turn_embeddings: dict[int, any] = {
         t.index: turn_embs_array[i] for i, t in enumerate(result.turns)
     }
+    prop_count = sum(1 for t in result.turns if t.proposition)
+    if prop_count > 0:
+        print(f"  Using propositions for {prop_count}/{len(result.turns)} turns")
 
     # Batch 2: embed the debate topic
     print("Embedding debate topic...")
@@ -107,6 +123,18 @@ def run(args):
     from pipeline.metrics.argumentation_schemes import score_argumentation_schemes
     from pipeline.metrics.paraphrase_fidelity import score_paraphrase_fidelity
     from pipeline.metrics.engagement_quality import score_engagement_quality
+    from pipeline.metrics.premise_sufficiency import score_premise_sufficiency
+    from pipeline.metrics.argument_depth import score_argument_depth
+    from pipeline.metrics.response_specificity import score_response_specificity
+    from pipeline.metrics.logical_coherence import score_logical_coherence
+    from pipeline.metrics.argument_graph import score_argument_graph
+    from pipeline.metrics.entailment_score import score_entailment
+    from pipeline.metrics.counterargument_relevance import score_counterargument_relevance
+    from pipeline.metrics.argument_coverage import score_argument_coverage
+    from pipeline.metrics.conversational_flow import score_conversational_flow
+    from pipeline.metrics.hedging_and_readability import score_hedging_readability
+    from pipeline.metrics.claim_defense import score_claim_defense
+    from pipeline.metrics.pivot_rate import score_pivot_rate
     from scorer import score_debate
 
     print("Scoring claims (with deduplication)...")
@@ -146,7 +174,7 @@ def run(args):
     score_red_herring(result.turns, turn_embeddings, debaters=result.debaters)
 
     print("Detecting gish gallop...")
-    score_gish_gallop(result.turns, debaters=result.debaters)
+    score_gish_gallop(result.turns, turn_embeddings, embedder, debaters=result.debaters)
 
     print("Detecting circular reasoning...")
     score_circular_reasoning(result.turns, turn_embeddings, embedder, debaters=result.debaters)
@@ -169,8 +197,57 @@ def run(args):
     print("Scoring engagement quality...")
     score_engagement_quality(result.turns, turn_embeddings, debaters=result.debaters)
 
+    print("Scoring premise sufficiency...")
+    score_premise_sufficiency(result.turns, embedder, debaters=result.debaters)
+
+    print("Scoring argument depth...")
+    score_argument_depth(result.turns, turn_embeddings, embedder, debaters=result.debaters)
+
+    print("Scoring response specificity...")
+    score_response_specificity(result.turns, debaters=result.debaters)
+
+    print("Scoring logical coherence...")
+    score_logical_coherence(result.turns, debaters=result.debaters)
+
+    print("Scoring argument graph...")
+    graph_scores = score_argument_graph(result.turns, embedder, debaters=result.debaters)
+
+    print("Scoring entailment...")
+    score_entailment(result.turns, embedder, debaters=result.debaters)
+
+    print("Scoring counterargument relevance...")
+    score_counterargument_relevance(result.turns, turn_embeddings, embedder, debaters=result.debaters)
+
+    print("Scoring argument coverage...")
+    coverage_scores = score_argument_coverage(result.turns, turn_embeddings, debaters=result.debaters)
+
+    print("Scoring conversational flow...")
+    flow_scores = score_conversational_flow(result.turns, debaters=result.debaters)
+
+    print("Scoring hedging and readability...")
+    score_hedging_readability(result.turns, debaters=result.debaters)
+
+    print("Scoring claim defense...")
+    defense_scores = score_claim_defense(result.turns, turn_embeddings, embedder, debaters=result.debaters)
+
+    print("Scoring pivot rate...")
+    pivot_scores = score_pivot_rate(result.turns, turn_embeddings, debaters=result.debaters)
+
+    print("Scoring substance ratio...")
+    from pipeline.metrics.substance_ratio import score_substance_ratio
+    substance_scores = score_substance_ratio(result.turns, debaters=result.debaters)
+
     print("Building speaker stats...")
-    score_debate(result, concession_counts=concession_counts)
+    score_debate(
+        result,
+        concession_counts=concession_counts,
+        graph_scores=graph_scores,
+        coverage_scores=coverage_scores,
+        flow_scores=flow_scores,
+        defense_scores=defense_scores,
+        pivot_scores=pivot_scores,
+        substance_scores=substance_scores,
+    )
 
     # Check for speakers with zero eligible turns
     for speaker, stats in result.stats.items():
@@ -178,8 +255,11 @@ def run(args):
             print(f"Warning: {speaker} has zero turns — stats may be unreliable")
 
     # Save output
+    output_data = result.to_dict()
+    if exchanges:
+        output_data["exchanges"] = exchanges
     with open(args.output, "w", encoding="utf-8") as f:
-        json.dump(result.to_dict(), f, indent=2, ensure_ascii=False)
+        json.dump(output_data, f, indent=2, ensure_ascii=False)
 
     # Print summary table
     header = (

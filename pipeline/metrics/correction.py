@@ -90,10 +90,64 @@ def score_corrections(
     turn_embeddings: dict[int, np.ndarray],
     debaters: list[str] | None = None,
 ) -> None:
-    """Mutates turns in place. Detects correction events using two methods:
+    """Mutates turns in place. Detects correction events.
+
+    If speech_act data exists, uses it: opponent turns with speech_act == "correction"
+    are corrections. Speaker responding with anything other than "dismissal"/"insult"
+    counts as acknowledged.
+
+    Falls back to two regex methods:
     A) Conflicting numeric/date claims between consecutive opponent turns
     B) Semantic rebuttal markers with substantive content
-    Then checks if the corrected speaker acknowledges the correction."""
+    """
+    # Check if structure extraction data is available
+    has_structure = any(t.speech_act is not None for t in turns)
+
+    if has_structure:
+        for i, turn in enumerate(turns):
+            if debaters and turn.speaker not in debaters:
+                continue
+            if turn.speech_act != "correction":
+                continue
+
+            # This turn corrects the previous opponent — find who was corrected
+            prev_opponent = None
+            for j in range(i - 1, -1, -1):
+                if turns[j].speaker != turn.speaker:
+                    prev_opponent = turns[j]
+                    break
+            if prev_opponent is None:
+                continue
+            if debaters and prev_opponent.speaker not in debaters:
+                continue
+
+            corrected_speaker = prev_opponent.speaker
+
+            # Find corrected speaker's next response
+            responder_turn = None
+            for j in range(i + 1, len(turns)):
+                if turns[j].speaker == corrected_speaker:
+                    responder_turn = turns[j]
+                    break
+            if responder_turn is None:
+                continue
+
+            # Check acknowledgment via speech_act
+            acknowledged = responder_turn.speech_act not in ("dismissal", "insult", None)
+
+            if not acknowledged:
+                responder_turn.flags.append(Flag(
+                    turn_index=responder_turn.index,
+                    flag_type="correction",
+                    score=0.0,
+                    threshold=0.0,
+                    explanation=(
+                        f"Correction from {turn.speaker} not acknowledged — "
+                        f"response speech_act: {responder_turn.speech_act}"
+                    ),
+                ))
+        return
+
     threshold = config.THRESHOLD_CORRECTION
 
     # Pre-extract claims for all turns
@@ -142,7 +196,39 @@ def score_corrections(
             turn_embeddings[responder_turn.index],
         ))
 
-        if similarity < threshold:
+        # Tighter acknowledgment: similarity alone is not enough.
+        # Must also show engagement with the correction's content.
+        acknowledged = False
+        if similarity >= threshold:
+            # Check for agreement markers
+            _agreement = re.compile(
+                r"\b(?:you(?:'re| are) right|fair point|I see|okay|"
+                r"I agree|that(?:'s| is) (?:true|fair|valid)|granted|"
+                r"I concede|I accept|good point|point taken)\b",
+                re.IGNORECASE,
+            )
+            if _agreement.search(responder_turn.text):
+                acknowledged = True
+
+            # Check for shared content words (2+ non-trivial words)
+            if not acknowledged:
+                _content_re = re.compile(r"[a-zA-Z]{5,}")
+                correction_words = set(_content_re.findall(turn.text.lower()))
+                response_words = set(_content_re.findall(responder_turn.text.lower()))
+                shared = correction_words & response_words
+                if len(shared) >= 2:
+                    acknowledged = True
+
+            # Check for premise indicators responding to the correction
+            if not acknowledged:
+                _premise = re.compile(
+                    r"\b(?:because|since|given that|due to|the reason is)\b",
+                    re.IGNORECASE,
+                )
+                if _premise.search(responder_turn.text) and similarity > 0.3:
+                    acknowledged = True
+
+        if not acknowledged:
             responder_turn.flags.append(Flag(
                 turn_index=responder_turn.index,
                 flag_type="correction",
