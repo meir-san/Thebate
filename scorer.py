@@ -19,6 +19,7 @@ def build_speaker_stats(
     defense_scores: dict[str, dict] | None = None,
     pivot_scores: dict[str, dict] | None = None,
     substance_scores: dict[str, dict] | None = None,
+    neutralize_ea: bool = False,
 ) -> SpeakerStats:
     weights = config.SCORE_WEIGHTS
     all_speaker_turns = [t for t in turns if t.speaker == speaker]
@@ -266,15 +267,23 @@ def build_speaker_stats(
         substance_share = 0.5
         explain_attack_ratio = 0.5
 
-    # --- Overall score (two-metric system) ---
+    # Neutralize explain_attack_ratio if any debater has low attack rate
+    ea_neutralized = False
+    if neutralize_ea:
+        explain_attack_ratio = 0.5
+        ea_neutralized = True
+
+    # --- Overall score (4-metric system) ---
     has_structure = any(t.speech_act is not None for t in speaker_turns)
     if not has_structure:
         print(f"  [{speaker}] WARNING: No structure extraction data found. Run phase1_5_extract.py first for accurate scoring.")
         overall_score = 50.0
     else:
         overall_score = (
-            responds_to_opponent_rate * weights["responds_to_opponent_rate"]
-            + substance_share * weights["substance_share"]
+            substance_share * weights["substance_share"]
+            + explain_attack_ratio * weights["explain_attack_ratio"]
+            + responds_to_opponent_rate * weights["responds_to_opponent_rate"]
+            + consistency_score * weights["consistency_score"]
         )
 
     # --- Diagnostic metrics (not scored, for detailed breakdown) ---
@@ -297,17 +306,22 @@ def build_speaker_stats(
         "entailment": avg_entailment_score,
         "claim_defense": claim_defense_rate,
         "retreat_pivot": 1 - retreat_pivot_rate,
-        "explain_attack_ratio": explain_attack_ratio,
     }
 
-    rto_points = responds_to_opponent_rate * weights["responds_to_opponent_rate"]
     ss_points = substance_share * weights["substance_share"]
+    cs_points = consistency_score * weights["consistency_score"]
+    ea_points = explain_attack_ratio * weights["explain_attack_ratio"]
+    rto_points = responds_to_opponent_rate * weights["responds_to_opponent_rate"]
+
+    ea_note = " (neutralized \u2014 low attack rate)" if ea_neutralized else f" (raw: {explain_attack_ratio:.3f})"
 
     print(f"\n  [{speaker}]")
     print(f"  === SCORING ===")
-    print(f"    {'responds_to_opponent':<24} {rto_points:5.1f} / {weights['responds_to_opponent_rate']:>3} (raw: {responds_to_opponent_rate:.3f})")
-    print(f"    {'substance_share':<24} {ss_points:5.1f} / {weights['substance_share']:>3} (raw: {substance_share:.3f})")
-    print(f"    {'TOTAL':<24} {overall_score:5.1f} / 100")
+    print(f"    {'substance_share':<26} {ss_points:5.1f} / {weights['substance_share']:>3} (raw: {substance_share:.3f})")
+    print(f"    {'consistency':<26} {cs_points:5.1f} / {weights['consistency_score']:>3} (raw: {consistency_score:.3f})")
+    print(f"    {'explain_attack_ratio':<26} {ea_points:5.1f} / {weights['explain_attack_ratio']:>3}{ea_note}")
+    print(f"    {'responds_to_opponent':<26} {rto_points:5.1f} / {weights['responds_to_opponent_rate']:>3} (raw: {responds_to_opponent_rate:.3f})")
+    print(f"    {'TOTAL':<26} {overall_score:5.1f} / 100")
     print(f"  === DIAGNOSTICS (not scored) ===")
     for name, raw in diagnostics.items():
         print(f"    {name:<28} {raw:.3f}")
@@ -382,6 +396,17 @@ def score_debate(
 ) -> None:
     """Mutates result.stats in place after all metrics have been run.
     Only builds stats for debaters, not moderators."""
+    # Check if any debater has attack_word_pct < 5% — neutralize EA for all
+    neutralize_ea = False
+    if substance_scores:
+        for speaker in result.debaters:
+            data = substance_scores.get(speaker, {})
+            total_words = data.get("total_words", 0)
+            attack_words = data.get("attack_words", 0)
+            if total_words > 0 and (attack_words / total_words) < 0.05:
+                neutralize_ea = True
+                break
+
     result.stats = {
         speaker: build_speaker_stats(
             result.turns, speaker, concession_counts, result.debaters,
@@ -391,6 +416,7 @@ def score_debate(
             defense_scores=defense_scores,
             pivot_scores=pivot_scores,
             substance_scores=substance_scores,
+            neutralize_ea=neutralize_ea,
         )
         for speaker in result.debaters
     }

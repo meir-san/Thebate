@@ -18,15 +18,8 @@ from pipeline.preprocessor import preprocess
 from pipeline.structure_extractor import extract_structure
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Phase 1.5: LLM structure extraction")
-    parser.add_argument("--input", required=True, help="Path to turns.json (or scored.json with turns array)")
-    parser.add_argument("--output", required=True, help="Path to write structured_turns.json")
-    parser.add_argument("--topic", default=None, help="Debate topic (auto-detected from JSON if present)")
-    parser.add_argument("--debaters", nargs="*", default=None, help="Debater names to process (all if omitted)")
-    parser.add_argument("--no-cache", action="store_true", help="Disable caching")
-    args = parser.parse_args()
-
+def run(args):
+    """Core extraction logic. Called by main() or unified CLI."""
     # Load input
     with open(args.input) as f:
         raw = json.load(f)
@@ -67,7 +60,7 @@ def main():
     # Step 2: Run structure extraction
     print("\n--- Structure Extraction ---")
     cache_path = None
-    if not args.no_cache:
+    if not getattr(args, 'no_cache', False):
         cache_dir = os.path.dirname(args.output) or "."
         cache_path = os.path.join(cache_dir, ".structure_cache.json")
 
@@ -83,6 +76,17 @@ def main():
     with open(args.output, "w") as f:
         json.dump(output, f, indent=2)
     print(f"\nWrote {args.output}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Phase 1.5: LLM structure extraction")
+    parser.add_argument("--input", required=True, help="Path to turns.json (or scored.json with turns array)")
+    parser.add_argument("--output", required=True, help="Path to write structured_turns.json")
+    parser.add_argument("--topic", default=None, help="Debate topic (auto-detected from JSON if present)")
+    parser.add_argument("--debaters", nargs="*", default=None, help="Debater names to process (all if omitted)")
+    parser.add_argument("--no-cache", action="store_true", help="Disable caching")
+    args = parser.parse_args()
+    run(args)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debate Stats</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d1117;
+  --card: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-dim: #8b949e;
+  --blue: #58a6ff;
+  --green: #3fb950;
+  --red: #f85149;
+  --yellow: #d29922;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+h1 { font-size: 28px; font-weight: 600; margin-bottom: 8px; }
+h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; }
+.subtitle { color: var(--text-dim); margin-bottom: 32px; }
+
+.screen { display: none; }
+.screen.active { display: block; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+input[type="text"], input[type="url"], select {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+  margin-bottom: 16px;
+}
+
+input:focus, select:focus { border-color: var(--blue); }
+
+button {
+  padding: 10px 24px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+button:hover { opacity: 0.9; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-secondary { background: var(--border); color: var(--text); }
+.btn-green { background: var(--green); }
+.btn-yellow { background: var(--yellow); color: #000; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.error {
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+/* Existing data banner */
+.existing-banner {
+  background: rgba(63, 185, 80, 0.1);
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  display: none;
+}
+
+.existing-banner .title {
+  font-weight: 600;
+  color: var(--green);
+  margin-bottom: 4px;
+}
+
+.existing-banner .detail {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+.existing-scores {
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.existing-scores span {
+  font-weight: 600;
+  margin-right: 16px;
+}
+
+/* Progress */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 16px 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--blue);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.progress-text { font-size: 14px; color: var(--text-dim); }
+
+.phase-label {
+  font-size: 13px;
+  color: var(--blue);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+/* Speaker cards */
+.speaker-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 12px;
+}
+
+.speaker-label { font-weight: 600; font-size: 15px; color: var(--blue); }
+.turn-count { font-size: 13px; color: var(--text-dim); margin-left: 8px; }
+
+.sample {
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.4;
+}
+.sample:last-child { border-bottom: none; }
+
+.sample-frame {
+  max-width: 400px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+}
+
+.sample-timestamp {
+  font-size: 12px;
+  color: var(--blue);
+  font-variant-numeric: tabular-nums;
+}
+
+.speaker-inputs {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.speaker-inputs input[type="text"] { flex: 1; margin-bottom: 0; }
+
+.speaker-inputs label {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 0; white-space: nowrap;
+  font-size: 14px; color: var(--text); cursor: pointer;
+}
+
+.speaker-inputs input[type="checkbox"] {
+  width: 16px; height: 16px; accent-color: var(--blue);
+}
+
+.voiceprint-match {
+  font-size: 12px;
+  color: var(--green);
+  margin-top: 4px;
+}
+
+/* Results */
+.scores-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.score-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.score-card.winner { border-color: var(--green); }
+.score-card.loser { border-color: var(--red); }
+
+.score-name { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+
+.score-number {
+  font-size: 56px; font-weight: 700; line-height: 1; margin-bottom: 4px;
+}
+
+.score-number.winner-color { color: var(--green); }
+.score-number.loser-color { color: var(--red); }
+.score-label { font-size: 13px; color: var(--text-dim); }
+
+.metric-row {
+  display: flex; justify-content: space-between;
+  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+}
+.metric-row:last-child { border-bottom: none; }
+.metric-name { color: var(--text-dim); }
+.metric-val { font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.collapsible-header {
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+  padding: 12px 0; font-weight: 600; user-select: none;
+}
+.collapsible-header .arrow { transition: transform 0.2s; font-size: 12px; }
+.collapsible-header.open .arrow { transform: rotate(90deg); }
+.collapsible-body { display: none; padding-bottom: 12px; }
+.collapsible-body.open { display: block; }
+
+.links-row { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+.links-row a { color: var(--blue); text-decoration: none; font-size: 14px; }
+.links-row a:hover { text-decoration: underline; }
+
+.video-embed { margin-top: 24px; border-radius: 12px; overflow: hidden; aspect-ratio: 16/9; }
+.video-embed iframe { width: 100%; height: 100%; border: none; }
+
+.diag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+
+/* Pipeline steps */
+.pipeline-steps { list-style: none; padding: 0; margin: 16px 0; }
+.pipeline-step {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; font-size: 14px; color: var(--text-dim);
+}
+.pipeline-step.running { color: var(--text); }
+.pipeline-step.complete { color: var(--text-dim); }
+
+.step-icon {
+  width: 22px; height: 22px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+
+.step-label { flex: 1; }
+.step-detail { font-size: 12px; color: var(--text-dim); margin-left: auto; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Screen 1: New Debate -->
+  <div id="screen-new" class="screen active">
+    <h1>Debate Stats</h1>
+    <p class="subtitle">Analyze any debate from YouTube</p>
+
+    <div id="error-box" class="error" style="display:none"></div>
+
+    <div id="existing-banner" class="existing-banner">
+      <div class="title">Found existing data for this debate</div>
+      <div class="detail" id="existing-detail"></div>
+      <div class="existing-scores" id="existing-scores"></div>
+      <div class="btn-row">
+        <button class="btn-green" onclick="resumeDebate('results')">View Results</button>
+        <button class="btn-yellow" onclick="resumeDebate('extract')">Re-analyze from extraction</button>
+        <button class="btn-secondary" onclick="resumeDebate('full')">Start fresh</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label for="url">YouTube URL</label>
+      <input type="url" id="url" placeholder="https://youtube.com/watch?v=..." oninput="checkUrl()">
+
+      <label for="topic">Debate Topic</label>
+      <input type="text" id="topic" placeholder="e.g. whether the earth is flat">
+
+      <label for="adapter">Transcription Service</label>
+      <select id="adapter">
+        <option value="remote-whisperx" selected>WhisperX (remote GPU)</option>
+        <option value="assemblyai">AssemblyAI</option>
+        <option value="pyannote-api">Pyannote API</option>
+        <option value="whisperx">WhisperX (local)</option>
+      </select>
+
+      <button id="btn-start" onclick="startAnalysis()">Start Analysis</button>
+    </div>
+  </div>
+
+  <!-- Screen 2: Ingest -->
+  <div id="screen-ingest" class="screen">
+    <h1>Downloading & Transcribing</h1>
+    <div class="card">
+      <div><span class="spinner"></span><span id="ingest-msg">Starting...</span></div>
+      <ul class="pipeline-steps" id="ingest-steps"></ul>
+      <p class="progress-text">This usually takes 3-5 minutes</p>
+    </div>
+  </div>
+
+  <!-- Screen 3: Speaker Identification -->
+  <div id="screen-speakers" class="screen">
+    <h1>Identify Speakers</h1>
+    <p class="subtitle">Name each speaker and check which ones are debaters (vs moderator/audience)</p>
+    <div id="speakers-list"></div>
+    <button id="btn-speakers" onclick="submitSpeakers()">Continue</button>
+  </div>
+
+  <!-- Screen 4: Processing -->
+  <div id="screen-processing" class="screen">
+    <h1>Analyzing Debate</h1>
+    <div class="card">
+      <div><span class="spinner"></span><span id="proc-msg">Starting...</span></div>
+      <ul class="pipeline-steps" id="proc-steps"></ul>
+      <div class="progress-bar"><div class="progress-fill" style="width:0%" id="proc-progress"></div></div>
+      <p class="progress-text" id="proc-detail"></p>
+    </div>
+  </div>
+
+  <!-- Screen 5: Results -->
+  <div id="screen-results" class="screen">
+    <h1>Results</h1>
+    <div class="scores-grid" id="scores-grid"></div>
+
+    <div class="card">
+      <h2>Scoring Breakdown</h2>
+      <div id="scoring-breakdown"></div>
+    </div>
+
+    <div class="card">
+      <div class="collapsible-header" onclick="toggleDiagnostics()">
+        <span class="arrow">&#9654;</span> Diagnostics (not scored)
+      </div>
+      <div class="collapsible-body" id="diagnostics-body"></div>
+    </div>
+
+    <div class="card">
+      <h2>Video</h2>
+      <div class="video-embed" id="video-embed"></div>
+      <div class="links-row" id="download-links"></div>
+    </div>
+
+    <div style="margin-top: 16px">
+      <button class="btn-secondary" onclick="resetApp()">Analyze Another Debate</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let pollTimer = null;
+let checkUrlTimer = null;
+let lastCheckedUrl = '';
+let cachedExisting = null;
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('screen-' + name);
+  if (el) el.classList.add('active');
+}
+
+function startPolling() {
+  if (pollTimer) return;
+  pollTimer = setInterval(pollStatus, 2000);
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+async function pollStatus() {
+  try {
+    const resp = await fetch('/api/status');
+    const st = await resp.json();
+    handleState(st);
+  } catch (e) {}
+}
+
+function renderPipelineSteps(containerId, steps) {
+  const el = document.getElementById(containerId);
+  if (!steps || !steps.length) { el.innerHTML = ''; return; }
+  el.innerHTML = steps.map(step => {
+    let icon = '<span style="color:var(--text-dim)">&#9711;</span>';  // pending: empty circle
+    if (step.status === 'running') icon = '<span class="spinner" style="width:16px;height:16px;margin:0"></span>';
+    if (step.status === 'complete') icon = '<span style="color:var(--green)">&#10003;</span>';
+    if (step.status === 'failed') icon = '<span style="color:var(--red)">&#10007;</span>';
+    const cls = step.status;
+    const detail = step.detail ? `<span class="step-detail">${escHtml(step.detail)}</span>` : '';
+    return `<li class="pipeline-step ${cls}"><span class="step-icon">${icon}</span><span class="step-label">${escHtml(step.label)}</span>${detail}</li>`;
+  }).join('');
+}
+
+function handleState(st) {
+  if (st.error) {
+    showScreen('new');
+    const box = document.getElementById('error-box');
+    box.textContent = st.error;
+    box.style.display = 'block';
+    document.getElementById('btn-start').disabled = false;
+    stopPolling();
+    return;
+  }
+
+  showScreen(st.screen);
+
+  if (st.screen === 'ingest') {
+    document.getElementById('ingest-msg').textContent = st.message;
+    renderPipelineSteps('ingest-steps', st.pipeline_steps);
+  }
+
+  if (st.screen === 'speakers') {
+    stopPolling();
+    renderSpeakers(st.speakers);
+  }
+
+  if (st.screen === 'processing') {
+    const pct = st.total > 0 ? Math.round((st.progress / st.total) * 100) : 0;
+    document.getElementById('proc-msg').textContent = st.message;
+    document.getElementById('proc-progress').style.width = pct + '%';
+    if (st.phase === 'score' || st.phase === 'render') {
+      document.getElementById('proc-progress').style.width = '100%';
+    }
+    document.getElementById('proc-detail').textContent = st.total > 0 ? `${st.progress} / ${st.total} turns` : '';
+    renderPipelineSteps('proc-steps', st.pipeline_steps);
+  }
+
+  if (st.screen === 'results') {
+    stopPolling();
+    renderResults(st.results);
+  }
+}
+
+// ── URL Check for Existing Data ──────────────────────────────
+function checkUrl() {
+  clearTimeout(checkUrlTimer);
+  checkUrlTimer = setTimeout(doCheckUrl, 500);
+}
+
+async function doCheckUrl() {
+  const url = document.getElementById('url').value.trim();
+  if (!url || url === lastCheckedUrl) return;
+
+  const m = url.match(/(?:v=|youtu\.be\/)([\w-]{11})/);
+  if (!m) {
+    document.getElementById('existing-banner').style.display = 'none';
+    cachedExisting = null;
+    return;
+  }
+
+  lastCheckedUrl = url;
+
+  try {
+    const resp = await fetch('/api/check-url', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url}),
+    });
+    const data = await resp.json();
+    cachedExisting = data;
+
+    const banner = document.getElementById('existing-banner');
+    if (data.exists) {
+      const parts = [];
+      if (data.existing.turns) parts.push('turns.json');
+      if (data.existing.structured) parts.push('structured_turns.json');
+      if (data.existing.scored) parts.push('scored.json');
+      if (data.existing.report) parts.push('report.html');
+
+      let detail = `Files found: ${parts.join(', ')}`;
+      if (data.title) detail = `${data.title}\n${detail}`;
+      document.getElementById('existing-detail').textContent = detail;
+
+      // Show scores if available
+      const scoresEl = document.getElementById('existing-scores');
+      if (data.scores) {
+        scoresEl.innerHTML = Object.entries(data.scores)
+          .map(([name, s]) => `<span>${escHtml(name)}: ${s.overall_score.toFixed(1)}</span>`)
+          .join('');
+      } else {
+        scoresEl.innerHTML = '';
+      }
+
+      // Pre-fill topic
+      if (data.topic && !document.getElementById('topic').value) {
+        document.getElementById('topic').value = data.topic;
+      }
+
+      // Show/hide buttons based on what data exists
+      banner.querySelectorAll('button').forEach(b => b.style.display = 'inline-block');
+      if (!data.existing.scored) {
+        banner.querySelector('.btn-green').style.display = 'none';
+      }
+      if (!data.existing.turns) {
+        banner.querySelector('.btn-yellow').style.display = 'none';
+      }
+
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch (e) {
+    cachedExisting = null;
+  }
+}
+
+async function resumeDebate(mode) {
+  const url = document.getElementById('url').value.trim();
+  const topic = document.getElementById('topic').value.trim() || (cachedExisting && cachedExisting.topic) || '';
+  const adapter = document.getElementById('adapter').value;
+
+  // Disable all resume buttons to prevent double-click
+  document.querySelectorAll('#existing-banner button').forEach(b => b.disabled = true);
+
+  try {
+    const resp = await fetch('/api/resume', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url, topic, mode, adapter}),
+    });
+    const data = await resp.json();
+    if (!data.ok) {
+      document.getElementById('error-box').textContent = data.error || 'Failed to resume';
+      document.getElementById('error-box').style.display = 'block';
+      document.querySelectorAll('#existing-banner button').forEach(b => b.disabled = false);
+      return;
+    }
+  } catch (e) {
+    document.querySelectorAll('#existing-banner button').forEach(b => b.disabled = false);
+    return;
+  }
+
+  document.getElementById('existing-banner').style.display = 'none';
+
+  if (mode === 'results') {
+    setTimeout(pollStatus, 500);
+  } else {
+    startPolling();
+  }
+}
+
+async function startAnalysis() {
+  const url = document.getElementById('url').value.trim();
+  const topic = document.getElementById('topic').value.trim();
+  const adapter = document.getElementById('adapter').value;
+
+  if (!url || !topic) {
+    const box = document.getElementById('error-box');
+    box.textContent = 'Please enter a YouTube URL and debate topic.';
+    box.style.display = 'block';
+    return;
+  }
+
+  document.getElementById('error-box').style.display = 'none';
+  document.getElementById('existing-banner').style.display = 'none';
+  document.getElementById('btn-start').disabled = true;
+
+  try {
+    const resp = await fetch('/api/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url, topic, adapter}),
+    });
+    const data = await resp.json();
+    if (!data.ok) {
+      document.getElementById('error-box').textContent = data.error || 'Failed to start';
+      document.getElementById('error-box').style.display = 'block';
+      document.getElementById('btn-start').disabled = false;
+      return;
+    }
+  } catch (e) {
+    document.getElementById('btn-start').disabled = false;
+    return;
+  }
+
+  showScreen('ingest');
+  startPolling();
+}
+
+function formatTimestamp(ms) {
+  const totalSecs = Math.floor(ms / 1000);
+  const m = Math.floor(totalSecs / 60);
+  const s = totalSecs % 60;
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+let speakersRendered = false;
+function renderSpeakers(speakers) {
+  if (speakersRendered) return;
+  speakersRendered = true;
+
+  const list = document.getElementById('speakers-list');
+  list.innerHTML = '';
+
+  speakers.forEach((sp, i) => {
+    const suggested = sp.suggested_name || '';
+    const card = document.createElement('div');
+    card.className = 'speaker-card';
+
+    let samplesHtml = '';
+    if (sp.samples && sp.samples.length) {
+      samplesHtml = sp.samples.map(s => {
+        // Support both old format (string) and new format (object with text/frame/timestamps)
+        if (typeof s === 'string') {
+          return `<div class="sample">"${escHtml(s)}"</div>`;
+        }
+        const frameImg = s.frame ? `<img class="sample-frame" src="${escHtml(s.frame)}" loading="lazy">` : '';
+        const ts = (s.start_ms != null && s.end_ms != null)
+          ? `<span class="sample-timestamp">[${formatTimestamp(s.start_ms)} - ${formatTimestamp(s.end_ms)}]</span> `
+          : '';
+        return `<div class="sample">${frameImg}${ts}"${escHtml(s.text)}"</div>`;
+      }).join('');
+    }
+
+    card.innerHTML = `
+      <div>
+        <span class="speaker-label">${sp.label}</span>
+        <span class="turn-count">${sp.turn_count} turns</span>
+      </div>
+      <div style="margin: 10px 0">
+        ${samplesHtml}
+      </div>
+      ${suggested ? `<div class="voiceprint-match">Voiceprint match: ${escHtml(suggested)}</div>` : ''}
+      <div class="speaker-inputs">
+        <input type="text" id="name-${i}" placeholder="Real name" value="${escHtml(suggested)}">
+        <label><input type="checkbox" id="debater-${i}" checked> Debater</label>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+async function submitSpeakers() {
+  const resp = await fetch('/api/status');
+  const st = await resp.json();
+  const speakers = st.speakers;
+
+  const mapping = {};
+  const debaters = [];
+
+  speakers.forEach((sp, i) => {
+    const name = document.getElementById('name-' + i).value.trim() || sp.label;
+    const isDebater = document.getElementById('debater-' + i).checked;
+    mapping[sp.label] = name;
+    if (isDebater) debaters.push(name);
+  });
+
+  document.getElementById('btn-speakers').disabled = true;
+
+  await fetch('/api/speakers', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({mapping, debaters}),
+  });
+
+  showScreen('processing');
+  startPolling();
+}
+
+let resultsRendered = false;
+function renderResults(results) {
+  if (resultsRendered || !results) return;
+  resultsRendered = true;
+
+  const speakers = results.speakers;
+  const names = Object.keys(speakers);
+
+  let maxScore = -1, winnerIdx = 0;
+  names.forEach((n, i) => {
+    if (speakers[n].overall_score > maxScore) { maxScore = speakers[n].overall_score; winnerIdx = i; }
+  });
+
+  const grid = document.getElementById('scores-grid');
+  grid.innerHTML = '';
+  names.forEach((name, i) => {
+    const stats = speakers[name];
+    const isWinner = i === winnerIdx;
+    const card = document.createElement('div');
+    card.className = 'score-card ' + (isWinner ? 'winner' : 'loser');
+    card.innerHTML = `
+      <div class="score-name">${escHtml(name)}</div>
+      <div class="score-number ${isWinner ? 'winner-color' : 'loser-color'}">${stats.overall_score.toFixed(1)}</div>
+      <div class="score-label">/ 100</div>
+    `;
+    grid.appendChild(card);
+  });
+
+  const breakdown = document.getElementById('scoring-breakdown');
+  breakdown.innerHTML = '';
+  names.forEach(name => {
+    const stats = speakers[name];
+    const rto = stats.responds_to_opponent_rate || 0;
+    const ss = stats.substance_share || 0;
+    breakdown.innerHTML += `
+      <div style="margin-bottom: 16px">
+        <div style="font-weight: 600; margin-bottom: 8px">${escHtml(name)}</div>
+        <div class="metric-row">
+          <span class="metric-name">responds_to_opponent (85%)</span>
+          <span class="metric-val">${(rto * 85).toFixed(1)} / 85 (raw: ${rto.toFixed(3)})</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-name">substance_share (15%)</span>
+          <span class="metric-val">${(ss * 15).toFixed(1)} / 15 (raw: ${ss.toFixed(3)})</span>
+        </div>
+      </div>
+    `;
+  });
+
+  const diagBody = document.getElementById('diagnostics-body');
+  diagBody.innerHTML = '';
+  const diagKeys = [
+    ['fallacy_rate', 'Fallacy rate'], ['avg_engagement_quality', 'Engagement quality'],
+    ['correction_absorption_rate', 'Correction absorption'], ['avg_evidence_density', 'Evidence density'],
+    ['dodge_rate', 'Dodge rate'], ['claim_defense_rate', 'Claim defense'],
+    ['logical_coherence_score', 'Logical coherence'], ['premise_sufficiency_score', 'Premise sufficiency'],
+    ['argument_depth_score', 'Argument depth'], ['response_specificity_score', 'Response specificity'],
+    ['graph_coherence_score', 'Argument graph'], ['avg_entailment_score', 'Entailment'],
+    ['avg_counterargument_relevance', 'Counter-arg relevance'], ['retreat_pivot_rate', 'Retreat/pivot rate'],
+    ['explain_attack_ratio', 'Explain/attack ratio'],
+    ['turn_count', 'Turn count', true], ['total_claims', 'Total claims', true],
+    ['total_dodges', 'Total dodges', true],
+  ];
+
+  names.forEach(name => {
+    const stats = speakers[name];
+    let html = `<div style="font-weight: 600; margin: 12px 0 8px">${escHtml(name)}</div><div class="diag-grid">`;
+    diagKeys.forEach(([key, label, isInt]) => {
+      const val = stats[key] || 0;
+      html += `<div class="metric-row"><span class="metric-name">${label}</span><span class="metric-val">${isInt ? val : val.toFixed(3)}</span></div>`;
+    });
+    html += '</div>';
+    diagBody.innerHTML += html;
+  });
+
+  const videoEmbed = document.getElementById('video-embed');
+  const ytUrl = results.url || '';
+  const videoId = extractVideoId(ytUrl);
+  if (videoId) {
+    videoEmbed.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`;
+  }
+
+  const links = document.getElementById('download-links');
+  links.innerHTML = `
+    <a href="/output/report.html" target="_blank">Open Report</a>
+    <a href="/output/overlay.html" target="_blank">Open Overlay</a>
+    <a href="/output/scored.json" target="_blank">Download scored.json</a>
+  `;
+}
+
+function toggleDiagnostics() {
+  const header = document.querySelector('.collapsible-header');
+  const body = document.getElementById('diagnostics-body');
+  header.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+async function resetApp() {
+  await fetch('/api/reset', {method: 'POST'});
+  speakersRendered = false;
+  resultsRendered = false;
+  lastCheckedUrl = '';
+  cachedExisting = null;
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-speakers').disabled = false;
+  document.getElementById('error-box').style.display = 'none';
+  document.getElementById('existing-banner').style.display = 'none';
+  showScreen('new');
+}
+
+function extractVideoId(url) {
+  const m = url.match(/(?:v=|youtu\.be\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>

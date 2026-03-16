@@ -61,22 +61,37 @@ def _cache_key(turn: Turn) -> str:
 
 
 def _build_context(turns: list[Turn], current_idx: int, debaters: list[str] | None) -> str:
-    """Build context block from up to 3 preceding scorable turns."""
+    """Build context: opponent's most recent turn + up to 2 same-speaker preceding turns."""
+    current_speaker = turns[current_idx].speaker
     context_lines = []
-    count = 0
+
+    # Find opponent's most recent turn (even if far back)
+    opponent_turn = None
     for j in range(current_idx - 1, -1, -1):
         t = turns[j]
-        if debaters and t.speaker not in debaters:
-            continue
-        if not t.score_this:
-            continue
-        text = (t.clean_text or t.text)[:300]
-        context_lines.insert(0, f'  {t.speaker}: "{text}"')
-        count += 1
-        if count >= 3:
-            break
+        if t.speaker != current_speaker and (not debaters or t.speaker in debaters):
+            if t.score_this:
+                opponent_turn = t
+                break
+
+    # Find up to 2 preceding same-speaker turns
+    same_speaker_turns = []
+    for j in range(current_idx - 1, -1, -1):
+        t = turns[j]
+        if t.speaker == current_speaker and t.score_this:
+            same_speaker_turns.insert(0, t)
+            if len(same_speaker_turns) >= 2:
+                break
+
+    if opponent_turn:
+        text = (opponent_turn.clean_text or opponent_turn.text)[:400]
+        context_lines.append(f'  [OPPONENT] {opponent_turn.speaker}: "{text}"')
+    for t in same_speaker_turns:
+        text = (t.clean_text or t.text)[:200]
+        context_lines.append(f'  [SAME SPEAKER] {t.speaker}: "{text}"')
+
     if context_lines:
-        return "PRECEDING TURNS:\n" + "\n".join(context_lines)
+        return "PRECEDING CONTEXT:\n" + "\n".join(context_lines)
     return ""
 
 

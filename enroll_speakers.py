@@ -1,4 +1,8 @@
-"""Enroll a speaker's voice by extracting an embedding from a known audio segment."""
+"""Enroll a speaker's voice by extracting an embedding from a known audio segment.
+
+Uses resemblyzer (lightweight speaker embedding model) instead of pyannote
+to avoid torchcodec/AudioDecoder compatibility issues.
+"""
 import argparse
 import os
 import subprocess
@@ -18,12 +22,39 @@ def parse_args():
     parser.add_argument("--name", required=True, help="Speaker name (used as filename)")
     parser.add_argument("--start", type=float, required=True, help="Start time in seconds where speaker is talking alone")
     parser.add_argument("--end", type=float, required=True, help="End time in seconds")
-    parser.add_argument("--speakers-dir", default="./speakers/", help="Directory to save embeddings (default: ./speakers/)")
+    parser.add_argument("--speakers-dir", default="./voiceprints/", help="Directory to save embeddings (default: ./voiceprints/)")
     return parser.parse_args()
 
 
 def _is_url(source: str) -> bool:
     return source.startswith("http://") or source.startswith("https://")
+
+
+def compute_embedding(audio_path: str, start: float, end: float) -> np.ndarray:
+    """Load audio segment and compute resemblyzer voice embedding."""
+    import librosa
+    from resemblyzer import VoiceEncoder, preprocess_wav
+
+    # Load audio segment at 16kHz (resemblyzer requirement)
+    y, sr = librosa.load(audio_path, sr=16000, offset=start, duration=end - start)
+
+    # Speech energy check
+    rms = librosa.feature.rms(y=y)
+    mean_rms = float(np.mean(rms))
+    if mean_rms < 0.01:
+        print(f"Warning: audio segment has very low energy (RMS={mean_rms:.4f}) — may not contain speech.")
+
+    # Preprocess and compute embedding
+    wav = preprocess_wav(y, source_sr=16000)
+    encoder = VoiceEncoder()
+    embedding = encoder.embed_utterance(wav)
+
+    # Normalize for cosine similarity
+    norm = np.linalg.norm(embedding)
+    if norm > 0:
+        embedding = embedding / norm
+
+    return embedding
 
 
 def main():
@@ -63,28 +94,7 @@ def main():
 
     # Compute embedding
     print(f"Computing voice embedding for {args.start:.1f}s – {args.end:.1f}s...")
-    from pyannote.audio import Model, Inference
-    from pyannote.core import Segment
-
-    model = Model.from_pretrained("pyannote/wespeaker-voxceleb-resnet34-LM")
-    inference = Inference(model, window="whole")
-
-    excerpt = Segment(args.start, args.end)
-    embedding = inference.crop(audio_path, excerpt).flatten()
-    # embedding is now (256,) numpy array
-
-    # Normalize for cosine similarity
-    norm = np.linalg.norm(embedding)
-    if norm > 0:
-        embedding = embedding / norm
-
-    # Speech energy check
-    import librosa
-    y, sr = librosa.load(audio_path, sr=None, offset=args.start, duration=args.end - args.start)
-    rms = librosa.feature.rms(y=y)
-    mean_rms = float(np.mean(rms))
-    if mean_rms < 0.01:
-        print(f"Warning: audio segment has very low energy (RMS={mean_rms:.4f}) — may not contain speech. Pick a louder segment.")
+    embedding = compute_embedding(audio_path, args.start, args.end)
 
     # Save
     os.makedirs(args.speakers_dir, exist_ok=True)

@@ -15,8 +15,10 @@ MIN_WORDS_EVIDENCE = 50          # Flag turns over this length with zero evidenc
 
 # Score weights — must sum to 100
 SCORE_WEIGHTS = {
-    "responds_to_opponent_rate": 85,
-    "substance_share": 15,
+    "substance_share": 60,
+    "explain_attack_ratio": 15,
+    "responds_to_opponent_rate": 5,
+    "consistency_score": 20,
 }
 
 # Ollama remote LLM
@@ -25,6 +27,10 @@ OLLAMA_MODEL = "qwen2.5:14b"
 
 # Embedding model
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+
+# Remote WhisperX GPU server
+REMOTE_WHISPERX_HOST = "100.103.53.6"
+REMOTE_WHISPERX_USER = "nun"
 
 # Reasoning connectors used by claim_ratio metric
 REASONING_CONNECTORS = [

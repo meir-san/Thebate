@@ -23,11 +23,12 @@ def parse_args():
     parser.add_argument("--speakers", default=None, help="Comma-separated real names in order of first appearance (skips interactive assignment)")
     parser.add_argument("--debaters", default=None, help="Comma-separated names of speakers to score (must be subset of --speakers). If omitted, all speakers are debaters.")
     parser.add_argument("--output", default="turns.json", help="Output JSON path (default: turns.json)")
-    parser.add_argument("--adapter", default="assemblyai", choices=["assemblyai", "whisperx", "pyannote-api"], help="Transcription adapter")
+    parser.add_argument("--adapter", default="assemblyai", choices=["assemblyai", "whisperx", "pyannote-api", "remote-whisperx"], help="Transcription adapter")
     parser.add_argument("--voiceprints", default=None, help="JSON file mapping speaker names to pyannoteAI voiceprint strings (for --adapter pyannote-api). Enroll voiceprints via pyannoteAI dashboard or API first")
     parser.add_argument("--speakers-dir", default="./speakers/", help="Directory with enrolled speaker .npy embeddings (default: ./speakers/)")
     parser.add_argument("--auto-enroll", action="store_true", help="Run interactive auto-enrollment if speakers dir is empty (whisperx only)")
     parser.add_argument("--enroll-model", default="base", help="WhisperX model for enrollment transcription (default: base). Use base or small for fast enrollment — accuracy doesn't matter for speaker ID")
+    parser.add_argument("--keep-audio", action="store_true", help="Copy downloaded audio to output directory (e.g., ./sneako/audio.mp3) for later voiceprint matching")
     return parser.parse_args()
 
 
@@ -73,6 +74,10 @@ def run(args):
         print("Error: PYANNOTE_API_KEY not set.")
         print("Get an API key at https://dashboard.pyannote.ai")
         sys.exit(1)
+    if args.adapter == "remote-whisperx" and not os.environ.get("HF_TOKEN"):
+        print("Error: HF_TOKEN not set.")
+        print("Add HF_TOKEN=hf_xxx to your .env file (needed for speaker diarization on GPU box).")
+        sys.exit(1)
 
     # Get video metadata
     metadata = get_video_metadata(args.url)
@@ -117,8 +122,12 @@ def run(args):
         print("Transcribing with WhisperX (this may take a while)...")
         from adapters.whisperx_adapter import WhisperXAdapter
         adapter = WhisperXAdapter(speakers_dir=args.speakers_dir)
+    elif args.adapter == "remote-whisperx":
+        print("Transcribing with WhisperX on remote GPU server...")
+        from adapters.remote_whisperx_adapter import RemoteWhisperXAdapter
+        adapter = RemoteWhisperXAdapter()
     elif args.adapter == "pyannote-api":
-        print("Transcribing with pyannoteAI cloud API...")
+        print("Transcribing with pyannoteAI cloud API (includes automated voiceprint enrollment)...")
         from adapters.pyannote_api_adapter import PyannoteAPIAdapter
         adapter = PyannoteAPIAdapter(voiceprints_path=args.voiceprints)
     else:
@@ -131,13 +140,16 @@ def run(args):
     turns = build_turns(segments)
 
     # Speaker assignment
+    # Check if the adapter already named speakers (e.g. pyannote-api with voiceprints)
+    speaker_labels = []
+    for t in turns:
+        if t.speaker not in speaker_labels:
+            speaker_labels.append(t.speaker)
+    has_named_speakers = any(not s.startswith("SPEAKER_") for s in speaker_labels)
+
     if args.speakers:
         # Fast path: use --speakers flag directly
         names = [n.strip() for n in args.speakers.split(",")]
-        speaker_labels = []
-        for t in turns:
-            if t.speaker not in speaker_labels:
-                speaker_labels.append(t.speaker)
 
         if len(names) != len(speaker_labels):
             print(f"Warning: --speakers has {len(names)} names but {len(speaker_labels)} speakers detected.")
@@ -148,6 +160,13 @@ def run(args):
             if i < len(names):
                 mapping[label] = names[i]
         apply_mapping(turns, mapping)
+    elif has_named_speakers:
+        # Adapter already named speakers (pyannote-api voiceprint flow)
+        named = [s for s in speaker_labels if not s.startswith("SPEAKER_")]
+        unnamed = [s for s in speaker_labels if s.startswith("SPEAKER_")]
+        print(f"\nSpeakers already identified: {', '.join(named)}")
+        if unnamed:
+            print(f"Unnamed speakers: {', '.join(unnamed)} (use --speakers to name them)")
     else:
         # Interactive assignment
         mapping = assign_speakers_interactive(turns)
@@ -159,14 +178,21 @@ def run(args):
         if t.speaker not in speakers:
             speakers.append(t.speaker)
 
-    # Determine debaters
+    # Determine debaters (case-insensitive matching against speaker names)
     if args.debaters:
-        debaters = [n.strip() for n in args.debaters.split(",")]
-        invalid = [d for d in debaters if d not in speakers]
+        debater_inputs = [n.strip() for n in args.debaters.split(",")]
+        speakers_lower = {s.lower(): s for s in speakers}
+        debaters = []
+        invalid = []
+        for d in debater_inputs:
+            matched = speakers_lower.get(d.lower())
+            if matched:
+                debaters.append(matched)
+            else:
+                invalid.append(d)
         if invalid:
             print(f"Warning: --debaters contains names not in speakers: {invalid}")
             print(f"Known speakers: {speakers}")
-            debaters = [d for d in debaters if d in speakers]
     else:
         debaters = list(speakers)
 
@@ -201,6 +227,17 @@ def run(args):
     print(f"  Duration: {format_duration(duration_ms)}")
     print(f"  Saved to: {args.output}")
     print(f"\n→ Next: python phase2_score.py --input {args.output}")
+
+    # Optionally keep audio for later voiceprint matching
+    if args.keep_audio:
+        import shutil
+        output_dir = os.path.dirname(os.path.abspath(args.output))
+        audio_dest = os.path.join(output_dir, "audio.mp3")
+        try:
+            shutil.copy2(tmp_path, audio_dest)
+            print(f"  Audio saved to: {audio_dest}")
+        except OSError as e:
+            print(f"  Warning: could not save audio: {e}")
 
     # Cleanup temp audio
     try:
